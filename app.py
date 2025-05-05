@@ -1,108 +1,84 @@
 import streamlit as st
 import pandas as pd
-import io
+import os
 
-st.title("📦 GHN Excel Upload - Auto + Manual Column Mapping (Multi-Sheet)")
+st.set_page_config(layout="wide")
+st.title("📦 Upload & Chuẩn hóa File Excel giao hàng")
 
-def auto_map_columns(columns):
-    mapping = {}
-    keywords = {
-        "họ tên": ["khách", "họ", "tên", "khách hàng"],
-        "số điện thoại": ["sdt", "sđt", "điện", "mobile"],
-        "địa chỉ": ["địa chỉ", "địa", "dc"],
-        "tên hàng": ["sản phẩm", "gồm", "sp", "tên hàng"],
-        "size": ["ghi chú", "mô tả", "size"],
-        "số tiền thu hộ": ["cod", "thu hộ", "tiền"]
-    }
-    for key, kws in keywords.items():
-        for col in columns:
-            for kw in kws:
-                if kw in str(col).lower():
-                    mapping[key] = col
-                    break
-            if key in mapping:
-                break
-    return mapping
+EXPECTED_COLUMNS = [
+    "mã đơn hàng", "ghi chú nội bộ", "stt", "họ tên", "số điện thoại", "địa chỉ",
+    "tên hàng", "size", "tiền thu hộ", "ngày tạo", "nguồn đơn hàng", "người tạo"
+]
 
-uploaded_files = st.file_uploader("Tải lên file .xlsx hoặc .csv", accept_multiple_files=True)
+REQUIRED_FIELDS = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size"]
+
+def is_probably_header(row):
+    return any(str(v).lower() in ["tên", "họ tên", "sđt", "sdt", "địa chỉ", "tên hàng"] for v in row)
+
+def auto_detect_header(df):
+    first_row = df.iloc[0].tolist()
+    return is_probably_header(first_row)
+
+def convert_no_header(df):
+    df.columns = EXPECTED_COLUMNS[:len(df.columns)]
+    return df
+
+def guess_column(df, keywords):
+    for keyword in keywords:
+        for col in df.columns:
+            if keyword.lower() in str(col).lower():
+                return col
+    return None
+
+def prepare_dataframe(uploaded_file):
+    xls = pd.ExcelFile(uploaded_file)
+    all_dfs = []
+    for sheet_name in xls.sheet_names:
+        df = xls.parse(sheet_name, header=None)
+        if auto_detect_header(df):
+            df = xls.parse(sheet_name)  # reread with header
+        else:
+            df = convert_no_header(df)
+        df["__sheet__"] = sheet_name
+        all_dfs.append(df)
+    return pd.concat(all_dfs, ignore_index=True)
+
+uploaded_files = st.file_uploader("📁 Tải lên file Excel", type=["xlsx"], accept_multiple_files=True)
 
 if uploaded_files:
-    all_data = []
+    full_df = pd.DataFrame()
+    for uploaded_file in uploaded_files:
+        df = prepare_dataframe(uploaded_file)
+        full_df = pd.concat([full_df, df], ignore_index=True)
 
-    for file in uploaded_files:
-        ext = file.name.split(".")[-1].lower()
+    st.subheader("📋 Xem trước dữ liệu")
+    st.dataframe(full_df.head(20))
 
-        try:
-            if ext == "xlsx":
-                xls = pd.ExcelFile(file)
-                sheet_names = xls.sheet_names
-            else:
-                sheet_names = [None]  # only one for CSV
-        
-            for sheet_name in sheet_names:
-                df_temp = pd.read_excel(file, sheet_name=sheet_name, header=None) if ext == "xlsx" else pd.read_csv(file, header=None)
+    st.markdown("### 🧠 Mapping cột")
 
-                first_row = df_temp.iloc[0].astype(str)
-                numeric_count = sum([cell.strip().replace('.', '', 1).isdigit() for cell in first_row])
-                if numeric_count >= len(first_row) - 2:
-                    df = df_temp.copy()
-                    df.columns = [f"Cột {i+1}" for i in range(df.shape[1])]
-                else:
-                    df = df_temp[1:].copy()
-                    df.columns = first_row
+    # Mapping thông minh hoặc thủ công
+    col_mapping = {}
+    for field in REQUIRED_FIELDS:
+        guessed = guess_column(full_df, [field])
+        col_mapping[field] = st.selectbox(f"🧩 Chọn cột cho '{field}'", full_df.columns, index=full_df.columns.get_loc(guessed) if guessed in full_df.columns else 0)
 
-                st.write(f"📄 Sheet: {sheet_name if sheet_name else 'CSV'}")
-                st.write("📋 Các cột có trong file:", df.columns.tolist())
+    missing = [f for f, c in col_mapping.items() if c not in full_df.columns]
+    if missing:
+        st.error(f"❌ Thiếu các cột: {', '.join(missing)}")
+    else:
+        st.success("✅ Đã ánh xạ đầy đủ các cột")
 
-                columns = df.columns.tolist()
-                mapping = auto_map_columns(columns)
+        st.markdown("### 📦 Kết quả sau chuẩn hóa:")
+        output = pd.DataFrame({
+            "Họ tên": full_df[col_mapping["họ tên"]],
+            "SĐT": full_df[col_mapping["số điện thoại"]],
+            "Địa chỉ": full_df[col_mapping["địa chỉ"]],
+            "Tên hàng": full_df[col_mapping["tên hàng"]],
+            "Size": full_df[col_mapping["size"]],
+            "Tiền thu hộ": full_df[col_mapping.get("tiền thu hộ", 0)] if "tiền thu hộ" in col_mapping else 0,
+        })
 
-                required_fields = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size"]
-                missing = [f for f in required_fields if f not in mapping]
+        st.dataframe(output)
 
-                if missing:
-                    st.warning(f"⚠️ Không đủ cột được nhận diện trong sheet '{sheet_name}'. Vui lòng chọn thủ công:")
-                    for field in required_fields:
-                        mapping[field] = st.selectbox(f"🛠 Chọn cột cho '{field}'", options=columns, key=field+str(sheet_name)+file.name)
-
-                if "số tiền thu hộ" not in mapping:
-                    mapping["số tiền thu hộ"] = st.selectbox("🛠 Chọn cột cho 'số tiền thu hộ' (COD)", options=columns, key="cod"+str(sheet_name)+file.name)
-
-                df["tên sản phẩm"] = df[mapping["tên hàng"]].astype(str) + " Size " + df[mapping["size"]].astype(str)
-
-                new_df = pd.DataFrame({
-                    "Họ tên người nhận": df[mapping["họ tên"]],
-                    "Số điện thoại người nhận": df[mapping["số điện thoại"]],
-                    "Địa chỉ": df[mapping["địa chỉ"]],
-                    "Gói cước": 2,
-                    "Yêu cầu đơn hàng": 2,
-                    "Tên sản phẩm": df["tên sản phẩm"],
-                    "Số lượng": 1,
-                    "Khối lượng (gram)": 500,
-                    "Chiều dài (cm)": 10,
-                    "Chiều rộng (cm)": 10,
-                    "Chiều cao (cm)": 10,
-                    "Giá trị hàng hóa": df[mapping["số tiền thu hộ"]],
-                    "Khai giá (Có/Không)": "x",
-                    "Tiền thu hộ (COD)": df[mapping["số tiền thu hộ"]],
-                    "Shop trả phí vận chuyển": "x",
-                    "Gửi hàng tại bưu cục": "",
-                    "Mã hàng riêng của shop": "",
-                    "Ghi chú thêm": "",
-                    "Ca lấy hàng": 1,
-                    "Giao thất bại thu tiền": 30000
-                })
-
-                all_data.append(new_df)
-
-        except Exception as e:
-            st.error(f"❌ Lỗi đọc file {file.name}: {e}")
-
-    if all_data:
-        final = pd.concat(all_data, ignore_index=True)
-        st.success("✅ Đã xử lý thành công tất cả file và sheet!")
-        st.dataframe(final)
-
-        towrite = io.BytesIO()
-        final.to_excel(towrite, index=False, engine="openpyxl")
-        st.download_button("📥 Tải file GHN", data=towrite.getvalue(), file_name="GHN_output.xlsx")
+        csv = output.to_csv(index=False).encode("utf-8-sig")
+        st.download_button("⬇️ Tải file kết quả", data=csv, file_name="don_hang_xuat_ra.csv", mime="text/csv")
