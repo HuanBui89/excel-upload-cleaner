@@ -6,7 +6,7 @@ st.title("📦 GHN Smart Excel Upload")
 
 def guess_column(columns, keyword):
     for col in columns:
-        if keyword in col.lower():
+        if keyword in str(col).lower():
             return col
     return columns[0] if columns else None
 
