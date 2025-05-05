@@ -2,7 +2,13 @@ import streamlit as st
 import pandas as pd
 import io
 
-st.title("📦 Tạo File GHN từ Excel")
+st.title("📦 GHN Smart Excel Upload")
+
+def guess_column(columns, keyword):
+    for col in columns:
+        if keyword in col.lower():
+            return col
+    return columns[0] if columns else None
 
 uploaded_files = st.file_uploader("Tải lên file .xlsx hoặc .csv", accept_multiple_files=True)
 
@@ -25,19 +31,20 @@ if uploaded_files:
 
         st.write("📄 Các cột có trong file:", df.columns.tolist())
 
-        required_cols = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size"]
-        missing_cols = [col for col in required_cols if col not in df.columns]
+        columns = df.columns.tolist()
+        ho_ten_col = st.selectbox("🧑 Cột chứa Họ tên", columns, index=columns.index(guess_column(columns, "tên")))
+        sdt_col = st.selectbox("📞 Cột chứa SĐT", columns, index=columns.index(guess_column(columns, "điện")))
+        diachi_col = st.selectbox("📍 Cột chứa Địa chỉ", columns, index=columns.index(guess_column(columns, "địa")))
+        tenhang_col = st.selectbox("📦 Cột chứa Tên hàng", columns, index=columns.index(guess_column(columns, "tên hàng")))
+        size_col = st.selectbox("📐 Cột chứa Size", columns, index=columns.index(guess_column(columns, "size")))
+        cod_col = st.selectbox("💰 Cột chứa Tiền thu hộ", columns, index=columns.index(guess_column(columns, "thu hộ")))
 
-        if missing_cols:
-            st.error(f"❌ Thiếu các cột bắt buộc: {', '.join(missing_cols)}")
-            st.stop()
-
-        df["tên sản phẩm"] = df["tên hàng"].astype(str) + " Size " + df["size"].astype(str)
+        df["tên sản phẩm"] = df[tenhang_col].astype(str) + " Size " + df[size_col].astype(str)
 
         new_df = pd.DataFrame({
-            "Họ tên người nhận": df.get("họ tên"),
-            "Số điện thoại người nhận": df.get("số điện thoại"),
-            "Địa chỉ": df.get("địa chỉ"),
+            "Họ tên người nhận": df.get(ho_ten_col),
+            "Số điện thoại người nhận": df.get(sdt_col),
+            "Địa chỉ": df.get(diachi_col),
             "Gói cước": 2,
             "Yêu cầu đơn hàng": 2,
             "Tên sản phẩm": df["tên sản phẩm"],
@@ -46,9 +53,9 @@ if uploaded_files:
             "Chiều dài (cm)": 10,
             "Chiều rộng (cm)": 10,
             "Chiều cao (cm)": 10,
-            "Giá trị hàng hóa": df.get("số tiền thu hộ", 0),
+            "Giá trị hàng hóa": df.get(cod_col, 0),
             "Khai giá (Có/Không)": "x",
-            "Tiền thu hộ (COD)": df.get("số tiền thu hộ", 0),
+            "Tiền thu hộ (COD)": df.get(cod_col, 0),
             "Shop trả phí vận chuyển": "x",
             "Gửi hàng tại bưu cục": "",
             "Mã hàng riêng của shop": "",
