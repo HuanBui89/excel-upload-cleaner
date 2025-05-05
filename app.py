@@ -1,49 +1,51 @@
+import streamlit as st
 import pandas as pd
-import os
-from tkinter import filedialog, Tk
+import io
 
-def process_all_files(file_paths):
+st.title("📦 Tạo File GHN từ Excel")
+
+uploaded_files = st.file_uploader("Tải lên file .xlsx hoặc .csv", accept_multiple_files=True)
+
+if uploaded_files:
     all_data = []
 
-    for file_path in file_paths:
-        try:
-            xls = pd.ExcelFile(file_path)
-            for sheet in xls.sheet_names:
-                df = xls.parse(sheet)
-                df.columns = df.columns.str.strip().str.lower()
+    for file in uploaded_files:
+        ext = file.name.split(".")[-1]
+        df = pd.read_excel(file) if ext == "xlsx" else pd.read_csv(file)
+        df.columns = df.columns.str.strip().str.lower()
 
-                name_col = next((col for col in df.columns if "tên" in col), None)
-                phone_col = next((col for col in df.columns if "điện thoại" in col or "sđt" in col), None)
-                address_col = next((col for col in df.columns if "địa" in col), None)
-                cod_col = next((col for col in df.columns if "thu hộ" in col or "cod" in col), None)
-                weight_col = next((col for col in df.columns if "cân" in col), None)
-                size_col = next((col for col in df.columns if "size" in col or "kích" in col), None)
-                product_col = next((col for col in df.columns if "tên hàng" in col or "sản phẩm" in col), None)
+        # Tạo cột tên hàng đầy đủ
+        df["tên sản phẩm"] = df["tên hàng"] + " Size " + df["size"].astype(str)
 
-                df["tên hàng đầy đủ"] = (
-                    df.get(product_col).astype(str) + " Size " + df.get(size_col).astype(str)
-                    if product_col and size_col else None
-                )
+        new_df = pd.DataFrame({
+            "Họ tên người nhận": df.get("họ tên"),
+            "Số điện thoại người nhận": df.get("số điện thoại"),
+            "Địa chỉ": df.get("địa chỉ"),
+            "Gói cước": 2,
+            "Yêu cầu đơn hàng": 2,
+            "Tên sản phẩm": df["tên sản phẩm"],
+            "Số lượng": 1,
+            "Khối lượng (gram)": 500,
+            "Chiều dài (cm)": 10,
+            "Chiều rộng (cm)": 10,
+            "Chiều cao (cm)": 10,
+            "Giá trị hàng hóa": df.get("số tiền thu hộ", 0),
+            "Khai giá (Có/Không)": "x",
+            "Tiền thu hộ (COD)": df.get("số tiền thu hộ", 0),
+            "Shop trả phí vận chuyển": "x",
+            "Gửi hàng tại bưu cục": "",
+            "Mã hàng riêng của shop": "",
+            "Ghi chú thêm": "",
+            "Ca lấy hàng": 1,
+            "Giao thất bại thu tiền": 30000
+        })
 
-                clean_df = pd.DataFrame({
-                    "Tên": df.get(name_col),
-                    "Số điện thoại": df.get(phone_col),
-                    "Địa chỉ": df.get(address_col),
-                    "Số tiền thu hộ": df.get(cod_col),
-                    "Cân nặng": df.get(weight_col),
-                    "Kích thước": df.get(size_col),
-                    "Tên hàng": df["tên hàng đầy đủ"]
-                })
+        all_data.append(new_df)
 
-                all_data.append(clean_df)
-        except Exception as e:
-            print(f"Lỗi xử lý file {file_path}: {e}")
+    final = pd.concat(all_data, ignore_index=True)
+    st.success("✅ Đã xử lý thành công!")
+    st.dataframe(final)
 
-    final_df = pd.concat(all_data, ignore_index=True)
-    final_df.to_excel("ket_qua_gop.xlsx", index=False)
-    print("✅ Đã xuất kết quả ra file ket_qua_gop.xlsx")
-
-# Giao diện chọn file
-Tk().withdraw()
-filez = filedialog.askopenfilenames(title="Chọn nhiều file Excel", filetypes=[("Excel Files", "*.xlsx")])
-process_all_files(filez)
+    towrite = io.BytesIO()
+    final.to_excel(towrite, index=False, engine="openpyxl")
+    st.download_button("📥 Tải file GHN", data=towrite.getvalue(), file_name="GHN_output.xlsx")
