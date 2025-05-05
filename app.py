@@ -17,11 +17,14 @@ if uploaded_files:
             df.columns = df.columns.str.strip().str.lower()
         except:
             df = pd.read_excel(file, header=None) if ext == "xlsx" else pd.read_csv(file, header=None)
-            df.columns = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"] + [f"cột_{i}" for i in range(len(df.columns)-6)]
+            if df.shape[1] >= 6:
+                df.columns = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"] + [f"cột_{i}" for i in range(len(df.columns)-6)]
+            else:
+                st.error("❌ File không có tiêu đề và không đủ 6 cột cần thiết để gán tên tự động.")
+                st.stop()
 
         st.write("📄 Các cột có trong file:", df.columns.tolist())
 
-        # Kiểm tra cột bắt buộc
         required_cols = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size"]
         missing_cols = [col for col in required_cols if col not in df.columns]
 
