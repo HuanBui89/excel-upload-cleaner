@@ -2,13 +2,27 @@ import streamlit as st
 import pandas as pd
 import io
 
-st.title("📦 GHN Smart Excel Upload")
+st.title("📦 GHN Smart Excel Upload - Auto Mapping")
 
-def guess_column(columns, keyword):
-    for col in columns:
-        if keyword in str(col).lower():
-            return col
-    return columns[0] if columns else None
+def auto_map_columns(columns):
+    mapping = {}
+    keywords = {
+        "họ tên": ["tên", "họ"],
+        "số điện thoại": ["điện", "sdt", "phone"],
+        "địa chỉ": ["địa", "đường", "address"],
+        "tên hàng": ["hàng", "tên hàng", "sản phẩm"],
+        "size": ["size", "kích thước"],
+        "số tiền thu hộ": ["thu hộ", "cod", "tiền"]
+    }
+    for key, kws in keywords.items():
+        for col in columns:
+            for kw in kws:
+                if kw in str(col).lower():
+                    mapping[key] = col
+                    break
+            if key in mapping:
+                break
+    return mapping
 
 uploaded_files = st.file_uploader("Tải lên file .xlsx hoặc .csv", accept_multiple_files=True)
 
@@ -32,19 +46,21 @@ if uploaded_files:
         st.write("📄 Các cột có trong file:", df.columns.tolist())
 
         columns = df.columns.tolist()
-        ho_ten_col = st.selectbox("🧑 Cột chứa Họ tên", columns, index=columns.index(guess_column(columns, "tên")))
-        sdt_col = st.selectbox("📞 Cột chứa SĐT", columns, index=columns.index(guess_column(columns, "điện")))
-        diachi_col = st.selectbox("📍 Cột chứa Địa chỉ", columns, index=columns.index(guess_column(columns, "địa")))
-        tenhang_col = st.selectbox("📦 Cột chứa Tên hàng", columns, index=columns.index(guess_column(columns, "tên hàng")))
-        size_col = st.selectbox("📐 Cột chứa Size", columns, index=columns.index(guess_column(columns, "size")))
-        cod_col = st.selectbox("💰 Cột chứa Tiền thu hộ", columns, index=columns.index(guess_column(columns, "thu hộ")))
+        mapping = auto_map_columns(columns)
 
-        df["tên sản phẩm"] = df[tenhang_col].astype(str) + " Size " + df[size_col].astype(str)
+        required_fields = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size"]
+        missing = [f for f in required_fields if f not in mapping]
+
+        if missing:
+            st.error(f"❌ Thiếu các cột: {', '.join(missing)}")
+            st.stop()
+
+        df["tên sản phẩm"] = df[mapping["tên hàng"]].astype(str) + " Size " + df[mapping["size"]].astype(str)
 
         new_df = pd.DataFrame({
-            "Họ tên người nhận": df.get(ho_ten_col),
-            "Số điện thoại người nhận": df.get(sdt_col),
-            "Địa chỉ": df.get(diachi_col),
+            "Họ tên người nhận": df[mapping["họ tên"]],
+            "Số điện thoại người nhận": df[mapping["số điện thoại"]],
+            "Địa chỉ": df[mapping["địa chỉ"]],
             "Gói cước": 2,
             "Yêu cầu đơn hàng": 2,
             "Tên sản phẩm": df["tên sản phẩm"],
@@ -53,9 +69,9 @@ if uploaded_files:
             "Chiều dài (cm)": 10,
             "Chiều rộng (cm)": 10,
             "Chiều cao (cm)": 10,
-            "Giá trị hàng hóa": df.get(cod_col, 0),
+            "Giá trị hàng hóa": df.get(mapping.get("số tiền thu hộ"), 0),
             "Khai giá (Có/Không)": "x",
-            "Tiền thu hộ (COD)": df.get(cod_col, 0),
+            "Tiền thu hộ (COD)": df.get(mapping.get("số tiền thu hộ"), 0),
             "Shop trả phí vận chuyển": "x",
             "Gửi hàng tại bưu cục": "",
             "Mã hàng riêng của shop": "",
