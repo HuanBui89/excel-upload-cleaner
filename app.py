@@ -35,18 +35,16 @@ if uploaded_files:
         try:
             df = pd.read_excel(file, header=0) if ext == "xlsx" else pd.read_csv(file, header=0)
             df.columns = df.columns.str.strip()
+            auto_header = True
         except:
             df = pd.read_excel(file, header=None) if ext == "xlsx" else pd.read_csv(file, header=None)
-            df.columns = [
-                "mã đơn hàng", "ghi chú nội bộ", "stt", "khách hàng", "sđt",
-                "địa chỉ", "tên hàng", "ghi chú in", "cod", "ngày tạo đơn", "nguồn", "người tạo"
-            ][:df.shape[1]]
+            df.columns = [f"Cột {i+1}" for i in range(df.shape[1])]
+            auto_header = False
 
         st.write("📄 Các cột có trong file:", df.columns.tolist())
 
         columns = df.columns.tolist()
-        mapping = auto_map_columns(columns)
-        st.write("🔎 Mapping tự động:", mapping)
+        mapping = auto_map_columns(columns) if auto_header else {}
 
         required_fields = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size"]
         missing = [f for f in required_fields if f not in mapping]
@@ -54,11 +52,10 @@ if uploaded_files:
         if missing:
             st.warning("⚠️ Không đủ cột được nhận diện. Vui lòng chọn thủ công các cột sau:")
             for field in required_fields:
-                if field not in mapping:
-                    mapping[field] = st.selectbox(f"🛠 Chọn cột cho '{field}'", options=columns)
+                mapping[field] = st.selectbox(f"🛠 Chọn cột cho '{field}'", options=columns)
 
         if "số tiền thu hộ" not in mapping:
-            mapping["số tiền thu hộ"] = st.selectbox("🛠 Chọn cột cho 'số tiền thu hộ' (COD)", options=columns, index=columns.index("cod") if "cod" in [c.lower() for c in columns] else 0)
+            mapping["số tiền thu hộ"] = st.selectbox("🛠 Chọn cột cho 'số tiền thu hộ' (COD)", options=columns)
 
         df["tên sản phẩm"] = df[mapping["tên hàng"]].astype(str) + " Size " + df[mapping["size"]].astype(str)
 
