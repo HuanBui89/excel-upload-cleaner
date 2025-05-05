@@ -36,9 +36,9 @@ if uploaded_files:
             df = pd.read_excel(file, header=0) if ext == "xlsx" else pd.read_csv(file, header=0)
             df.columns = df.columns.str.strip()
             auto_header = True
-            # Nếu cột đầu tiên là số hoặc 0, có thể header bị sai → xử lý lại như không có header
-            if all(isinstance(col, int) or str(col).isdigit() for col in df.columns):
-                raise ValueError("Invalid header")
+            # Nếu bất kỳ tên cột nào là số thì coi như không có header thật sự
+            if any(str(col).strip().isdigit() for col in df.columns):
+                raise ValueError("Contains numeric column header")
         except:
             df = pd.read_excel(file, header=None) if ext == "xlsx" else pd.read_csv(file, header=None)
             df.columns = [f"Cột {i+1}" for i in range(df.shape[1])]
