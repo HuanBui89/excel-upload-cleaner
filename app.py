@@ -10,12 +10,21 @@ if uploaded_files:
     all_data = []
 
     for file in uploaded_files:
-        ext = file.name.split(".")[-1]
+        ext = file.name.split(".")[-1].lower()
         df = pd.read_excel(file) if ext == "xlsx" else pd.read_csv(file)
         df.columns = df.columns.str.strip().str.lower()
 
-        # Tạo cột tên hàng đầy đủ
-        df["tên sản phẩm"] = df["tên hàng"] + " Size " + df["size"].astype(str)
+        st.write("📄 Các cột có trong file:", df.columns.tolist())
+
+        # Kiểm tra cột bắt buộc
+        required_cols = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size"]
+        missing_cols = [col for col in required_cols if col not in df.columns]
+
+        if missing_cols:
+            st.error(f"❌ Thiếu các cột bắt buộc: {', '.join(missing_cols)}")
+            st.stop()
+
+        df["tên sản phẩm"] = df["tên hàng"].astype(str) + " Size " + df["size"].astype(str)
 
         new_df = pd.DataFrame({
             "Họ tên người nhận": df.get("họ tên"),
