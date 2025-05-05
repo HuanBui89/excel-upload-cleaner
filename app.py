@@ -1,84 +1,93 @@
 import streamlit as st
 import pandas as pd
-import os
+import io
 
-st.set_page_config(layout="wide")
-st.title("📦 Upload & Chuẩn hóa File Excel giao hàng")
+st.set_page_config(page_title="Excel to GHN Format", layout="wide")
+st.title("📦 Tạo File Đơn Hàng GHN từ Excel")
 
-EXPECTED_COLUMNS = [
-    "mã đơn hàng", "ghi chú nội bộ", "stt", "họ tên", "số điện thoại", "địa chỉ",
-    "tên hàng", "size", "tiền thu hộ", "ngày tạo", "nguồn đơn hàng", "người tạo"
+REQUIRED_FIELDS = ["Tên người nhận", "SĐT người nhận", "Địa chỉ", "Tên hàng", "Size"]
+DEFAULT_VALUES = {
+    "Gói cước": 2,
+    "Yêu cầu đơn hàng": 2,
+    "Khối lượng (g)": 500,
+    "Dài (cm)": 10,
+    "Rộng (cm)": 10,
+    "Cao (cm)": 10,
+    "Có/Không": "x",
+    "Shop trả ship": "x",
+    "Gửi hàng tại bưu cục": "",
+    "Mã hàng riêng": "",
+    "Ghi chú thêm": "",
+    "Ca lấy": 1,
+    "Giao thất bại thu tiền": 30000
+}
+GHN_COLUMNS = [
+    "STT", "Mã đơn hàng của KH", "Mã vận đơn", "Tên người nhận", "SĐT người nhận",
+    "Địa chỉ", "Phường xã", "Quận huyện", "Tỉnh thành", "Gói cước", "Yêu cầu đơn hàng",
+    "Khối lượng (g)", "Dài (cm)", "Rộng (cm)", "Cao (cm)", "Số tiền thu hộ (COD)",
+    "Có/Không", "Giá trị hàng hóa", "Shop trả ship", "Gửi hàng tại bưu cục",
+    "Mã hàng riêng", "Ghi chú thêm", "Ca lấy", "Giao thất bại thu tiền"
 ]
 
-REQUIRED_FIELDS = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size"]
+def guess_header(df):
+    has_header = df.iloc[0].isnull().sum() < len(df.columns) / 2
+    return has_header
 
-def is_probably_header(row):
-    return any(str(v).lower() in ["tên", "họ tên", "sđt", "sdt", "địa chỉ", "tên hàng"] for v in row)
-
-def auto_detect_header(df):
-    first_row = df.iloc[0].tolist()
-    return is_probably_header(first_row)
-
-def convert_no_header(df):
-    df.columns = EXPECTED_COLUMNS[:len(df.columns)]
-    return df
-
-def guess_column(df, keywords):
-    for keyword in keywords:
-        for col in df.columns:
-            if keyword.lower() in str(col).lower():
-                return col
-    return None
-
-def prepare_dataframe(uploaded_file):
-    xls = pd.ExcelFile(uploaded_file)
-    all_dfs = []
-    for sheet_name in xls.sheet_names:
-        df = xls.parse(sheet_name, header=None)
-        if auto_detect_header(df):
-            df = xls.parse(sheet_name)  # reread with header
+def process_file(uploaded_file):
+    dfs = pd.read_excel(uploaded_file, sheet_name=None)
+    results = []
+    for sheet_name, df in dfs.items():
+        if not guess_header(df):
+            df.columns = [f"Cột {i+1}" for i in range(df.shape[1])]
         else:
-            df = convert_no_header(df)
-        df["__sheet__"] = sheet_name
-        all_dfs.append(df)
-    return pd.concat(all_dfs, ignore_index=True)
+            df.columns = df.iloc[0].astype(str)
+            df = df[1:].reset_index(drop=True)
 
-uploaded_files = st.file_uploader("📁 Tải lên file Excel", type=["xlsx"], accept_multiple_files=True)
+        # Cho người dùng map cột
+        st.subheader(f"🔍 Sheet: {sheet_name}")
+        mapping = {}
+        for req in REQUIRED_FIELDS:
+            mapping[req] = st.selectbox(f"Chọn cột cho '{req}'", df.columns, key=f"{sheet_name}_{req}")
 
-if uploaded_files:
-    full_df = pd.DataFrame()
-    for uploaded_file in uploaded_files:
-        df = prepare_dataframe(uploaded_file)
-        full_df = pd.concat([full_df, df], ignore_index=True)
+        # Xây dựng dataframe kết quả
+        result_df = pd.DataFrame()
+        result_df["Tên người nhận"] = df[mapping["Tên người nhận"]]
+        result_df["SĐT người nhận"] = df[mapping["SĐT người nhận"]]
+        result_df["Địa chỉ"] = df[mapping["Địa chỉ"]]
+        result_df["Số tiền thu hộ (COD)"] = pd.to_numeric(df[mapping.get("COD", mapping["Số tiền thu hộ (COD)"])], errors='coerce').fillna(0).astype(int)
+        result_df["Giá trị hàng hóa"] = result_df["Số tiền thu hộ (COD)"]
+        result_df["Tên hàng"] = df[mapping["Tên hàng"]] + " - " + df[mapping["Size"]].astype(str)
 
-    st.subheader("📋 Xem trước dữ liệu")
-    st.dataframe(full_df.head(20))
+        # Gán các cột mặc định
+        for col in GHN_COLUMNS:
+            if col not in result_df.columns:
+                if col in DEFAULT_VALUES:
+                    result_df[col] = DEFAULT_VALUES[col]
+                else:
+                    result_df[col] = ""
 
-    st.markdown("### 🧠 Mapping cột")
+        result_df = result_df[GHN_COLUMNS]
+        result_df.insert(0, "STT", range(1, len(result_df)+1))
+        results.append((sheet_name, result_df))
 
-    # Mapping thông minh hoặc thủ công
-    col_mapping = {}
-    for field in REQUIRED_FIELDS:
-        guessed = guess_column(full_df, [field])
-        col_mapping[field] = st.selectbox(f"🧩 Chọn cột cho '{field}'", full_df.columns, index=full_df.columns.get_loc(guessed) if guessed in full_df.columns else 0)
+    return results
 
-    missing = [f for f, c in col_mapping.items() if c not in full_df.columns]
-    if missing:
-        st.error(f"❌ Thiếu các cột: {', '.join(missing)}")
-    else:
-        st.success("✅ Đã ánh xạ đầy đủ các cột")
+uploaded_file = st.file_uploader("📤 Tải lên file Excel", type=["xlsx"])
+if uploaded_file:
+    try:
+        converted = process_file(uploaded_file)
+        for sheet_name, df in converted:
+            st.success(f"✅ Xử lý xong sheet: {sheet_name}")
+            st.dataframe(df)
 
-        st.markdown("### 📦 Kết quả sau chuẩn hóa:")
-        output = pd.DataFrame({
-            "Họ tên": full_df[col_mapping["họ tên"]],
-            "SĐT": full_df[col_mapping["số điện thoại"]],
-            "Địa chỉ": full_df[col_mapping["địa chỉ"]],
-            "Tên hàng": full_df[col_mapping["tên hàng"]],
-            "Size": full_df[col_mapping["size"]],
-            "Tiền thu hộ": full_df[col_mapping.get("tiền thu hộ", 0)] if "tiền thu hộ" in col_mapping else 0,
-        })
-
-        st.dataframe(output)
-
-        csv = output.to_csv(index=False).encode("utf-8-sig")
-        st.download_button("⬇️ Tải file kết quả", data=csv, file_name="don_hang_xuat_ra.csv", mime="text/csv")
+            buffer = io.BytesIO()
+            with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                df.to_excel(writer, index=False, sheet_name=sheet_name)
+            st.download_button(
+                label=f"📥 Tải file {sheet_name} đã xử lý",
+                data=buffer.getvalue(),
+                file_name=f"GHN_{sheet_name}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+    except Exception as e:
+        st.error(f"Đã xảy ra lỗi khi xử lý file: {e}")
