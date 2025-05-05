@@ -36,6 +36,9 @@ if uploaded_files:
             df = pd.read_excel(file, header=0) if ext == "xlsx" else pd.read_csv(file, header=0)
             df.columns = df.columns.str.strip()
             auto_header = True
+            # Nếu cột đầu tiên là số hoặc 0, có thể header bị sai → xử lý lại như không có header
+            if all(isinstance(col, int) or str(col).isdigit() for col in df.columns):
+                raise ValueError("Invalid header")
         except:
             df = pd.read_excel(file, header=None) if ext == "xlsx" else pd.read_csv(file, header=None)
             df.columns = [f"Cột {i+1}" for i in range(df.shape[1])]
@@ -52,10 +55,10 @@ if uploaded_files:
         if missing:
             st.warning("⚠️ Không đủ cột được nhận diện. Vui lòng chọn thủ công các cột sau:")
             for field in required_fields:
-                mapping[field] = st.selectbox(f"🛠 Chọn cột cho '{field}'", options=columns)
+                mapping[field] = st.selectbox(f"🛠 Chọn cột cho '{field}'", options=columns, key=field)
 
         if "số tiền thu hộ" not in mapping:
-            mapping["số tiền thu hộ"] = st.selectbox("🛠 Chọn cột cho 'số tiền thu hộ' (COD)", options=columns)
+            mapping["số tiền thu hộ"] = st.selectbox("🛠 Chọn cột cho 'số tiền thu hộ' (COD)", options=columns, key="cod")
 
         df["tên sản phẩm"] = df[mapping["tên hàng"]].astype(str) + " Size " + df[mapping["size"]].astype(str)
 
