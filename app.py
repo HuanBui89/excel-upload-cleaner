@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import io
 
-st.title("📦 GHN Smart Excel Upload - Auto Mapping (Cập nhật theo cột chuẩn)")
+st.title("📦 GHN Excel Upload - Auto + Manual Column Mapping")
 
 def auto_map_columns(columns):
     mapping = {}
@@ -37,11 +37,10 @@ if uploaded_files:
             df.columns = df.columns.str.strip()
         except:
             df = pd.read_excel(file, header=None) if ext == "xlsx" else pd.read_csv(file, header=None)
-            if df.shape[1] >= 6:
-                df.columns = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"] + [f"cột_{i}" for i in range(len(df.columns)-6)]
-            else:
-                st.error("❌ File không có tiêu đề và không đủ 6 cột cần thiết để gán tên tự động.")
-                st.stop()
+            df.columns = [
+                "mã đơn hàng", "ghi chú nội bộ", "stt", "khách hàng", "sđt",
+                "địa chỉ", "tên hàng", "ghi chú in", "cod", "ngày tạo đơn", "nguồn", "người tạo"
+            ][:df.shape[1]]
 
         st.write("📄 Các cột có trong file:", df.columns.tolist())
 
@@ -53,8 +52,13 @@ if uploaded_files:
         missing = [f for f in required_fields if f not in mapping]
 
         if missing:
-            st.error(f"❌ Thiếu các cột: {', '.join(missing)}")
-            st.stop()
+            st.warning("⚠️ Không đủ cột được nhận diện. Vui lòng chọn thủ công các cột sau:")
+            for field in required_fields:
+                if field not in mapping:
+                    mapping[field] = st.selectbox(f"🛠 Chọn cột cho '{field}'", options=columns)
+
+        if "số tiền thu hộ" not in mapping:
+            mapping["số tiền thu hộ"] = st.selectbox("🛠 Chọn cột cho 'số tiền thu hộ' (COD)", options=columns, index=columns.index("cod") if "cod" in [c.lower() for c in columns] else 0)
 
         df["tên sản phẩm"] = df[mapping["tên hàng"]].astype(str) + " Size " + df[mapping["size"]].astype(str)
 
@@ -70,9 +74,9 @@ if uploaded_files:
             "Chiều dài (cm)": 10,
             "Chiều rộng (cm)": 10,
             "Chiều cao (cm)": 10,
-            "Giá trị hàng hóa": df.get(mapping.get("số tiền thu hộ"), 0),
+            "Giá trị hàng hóa": df[mapping["số tiền thu hộ"]],
             "Khai giá (Có/Không)": "x",
-            "Tiền thu hộ (COD)": df.get(mapping.get("số tiền thu hộ"), 0),
+            "Tiền thu hộ (COD)": df[mapping["số tiền thu hộ"]],
             "Shop trả phí vận chuyển": "x",
             "Gửi hàng tại bưu cục": "",
             "Mã hàng riêng của shop": "",
