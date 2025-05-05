@@ -2,17 +2,17 @@ import streamlit as st
 import pandas as pd
 import io
 
-st.title("📦 GHN Smart Excel Upload - Auto Mapping + Debug")
+st.title("📦 GHN Smart Excel Upload - Auto Mapping (Cập nhật theo cột chuẩn)")
 
 def auto_map_columns(columns):
     mapping = {}
     keywords = {
-        "họ tên": ["tên", "họ", "full name", "hoten"],
-        "số điện thoại": ["điện", "sdt", "phone", "mobile", "dt", "số dt"],
-        "địa chỉ": ["địa", "đường", "address", "dc"],
-        "tên hàng": ["hàng", "tên hàng", "sản phẩm", "product"],
-        "size": ["size", "kích thước", "sz"],
-        "số tiền thu hộ": ["thu hộ", "cod", "tiền", "giá trị"]
+        "họ tên": ["khách", "họ", "tên", "khách hàng"],
+        "số điện thoại": ["sdt", "sđt", "điện", "mobile"],
+        "địa chỉ": ["địa chỉ", "địa", "dc"],
+        "tên hàng": ["sản phẩm", "gồm", "sp", "tên hàng"],
+        "size": ["ghi chú", "mô tả", "size"],
+        "số tiền thu hộ": ["cod", "thu hộ", "tiền"]
     }
     for key, kws in keywords.items():
         for col in columns:
@@ -34,7 +34,7 @@ if uploaded_files:
 
         try:
             df = pd.read_excel(file, header=0) if ext == "xlsx" else pd.read_csv(file, header=0)
-            df.columns = df.columns.str.strip().str.lower()
+            df.columns = df.columns.str.strip()
         except:
             df = pd.read_excel(file, header=None) if ext == "xlsx" else pd.read_csv(file, header=None)
             if df.shape[1] >= 6:
