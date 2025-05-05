@@ -33,21 +33,24 @@ if uploaded_files:
         ext = file.name.split(".")[-1].lower()
 
         try:
-            df = pd.read_excel(file, header=0) if ext == "xlsx" else pd.read_csv(file, header=0)
-            df.columns = df.columns.str.strip()
-            auto_header = True
-            # Nếu bất kỳ tên cột nào là số thì coi như không có header thật sự
-            if any(str(col).strip().isdigit() for col in df.columns):
-                raise ValueError("Contains numeric column header")
-        except:
-            df = pd.read_excel(file, header=None) if ext == "xlsx" else pd.read_csv(file, header=None)
-            df.columns = [f"Cột {i+1}" for i in range(df.shape[1])]
-            auto_header = False
+            df_temp = pd.read_excel(file, header=None) if ext == "xlsx" else pd.read_csv(file, header=None)
+            # Lấy hàng đầu tiên làm tên cột nếu phần lớn giá trị không phải số
+            first_row = df_temp.iloc[0].astype(str)
+            numeric_count = sum([cell.strip().replace('.', '', 1).isdigit() for cell in first_row])
+            if numeric_count >= len(first_row) - 2:  # nếu gần như toàn bộ là số → dữ liệu, không phải tiêu đề
+                df = df_temp.copy()
+                df.columns = [f"Cột {i+1}" for i in range(df.shape[1])]
+            else:
+                df = df_temp[1:].copy()
+                df.columns = first_row
+        except Exception as e:
+            st.error(f"❌ Lỗi đọc file: {e}")
+            continue
 
         st.write("📄 Các cột có trong file:", df.columns.tolist())
 
         columns = df.columns.tolist()
-        mapping = auto_map_columns(columns) if auto_header else {}
+        mapping = auto_map_columns(columns)
 
         required_fields = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size"]
         missing = [f for f in required_fields if f not in mapping]
@@ -55,10 +58,10 @@ if uploaded_files:
         if missing:
             st.warning("⚠️ Không đủ cột được nhận diện. Vui lòng chọn thủ công các cột sau:")
             for field in required_fields:
-                mapping[field] = st.selectbox(f"🛠 Chọn cột cho '{field}'", options=columns, key=field)
+                mapping[field] = st.selectbox(f"🛠 Chọn cột cho '{field}'", options=columns, key=field+file.name)
 
         if "số tiền thu hộ" not in mapping:
-            mapping["số tiền thu hộ"] = st.selectbox("🛠 Chọn cột cho 'số tiền thu hộ' (COD)", options=columns, key="cod")
+            mapping["số tiền thu hộ"] = st.selectbox("🛠 Chọn cột cho 'số tiền thu hộ' (COD)", options=columns, key="cod"+file.name)
 
         df["tên sản phẩm"] = df[mapping["tên hàng"]].astype(str) + " Size " + df[mapping["size"]].astype(str)
 
