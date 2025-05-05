@@ -11,8 +11,13 @@ if uploaded_files:
 
     for file in uploaded_files:
         ext = file.name.split(".")[-1].lower()
-        df = pd.read_excel(file) if ext == "xlsx" else pd.read_csv(file)
-        df.columns = df.columns.str.strip().str.lower()
+
+        try:
+            df = pd.read_excel(file, header=0) if ext == "xlsx" else pd.read_csv(file, header=0)
+            df.columns = df.columns.str.strip().str.lower()
+        except:
+            df = pd.read_excel(file, header=None) if ext == "xlsx" else pd.read_csv(file, header=None)
+            df.columns = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"] + [f"cột_{i}" for i in range(len(df.columns)-6)]
 
         st.write("📄 Các cột có trong file:", df.columns.tolist())
 
