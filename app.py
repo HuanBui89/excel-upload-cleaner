@@ -2,17 +2,17 @@ import streamlit as st
 import pandas as pd
 import io
 
-st.title("📦 GHN Smart Excel Upload - Auto Mapping")
+st.title("📦 GHN Smart Excel Upload - Auto Mapping + Debug")
 
 def auto_map_columns(columns):
     mapping = {}
     keywords = {
-        "họ tên": ["tên", "họ"],
-        "số điện thoại": ["điện", "sdt", "phone"],
-        "địa chỉ": ["địa", "đường", "address"],
-        "tên hàng": ["hàng", "tên hàng", "sản phẩm"],
-        "size": ["size", "kích thước"],
-        "số tiền thu hộ": ["thu hộ", "cod", "tiền"]
+        "họ tên": ["tên", "họ", "full name", "hoten"],
+        "số điện thoại": ["điện", "sdt", "phone", "mobile", "dt", "số dt"],
+        "địa chỉ": ["địa", "đường", "address", "dc"],
+        "tên hàng": ["hàng", "tên hàng", "sản phẩm", "product"],
+        "size": ["size", "kích thước", "sz"],
+        "số tiền thu hộ": ["thu hộ", "cod", "tiền", "giá trị"]
     }
     for key, kws in keywords.items():
         for col in columns:
@@ -47,6 +47,7 @@ if uploaded_files:
 
         columns = df.columns.tolist()
         mapping = auto_map_columns(columns)
+        st.write("🔎 Mapping tự động:", mapping)
 
         required_fields = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size"]
         missing = [f for f in required_fields if f not in mapping]
