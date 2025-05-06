@@ -2,14 +2,15 @@ import streamlit as st
 import pandas as pd
 import io
 
+st.set_page_config(page_title="GHN Upload Tool", layout="wide")
 st.title("📦 GHN Excel Upload - Auto + Manual Column Mapping (Multi-Sheet)")
 
 def auto_map_columns(columns):
     mapping = {}
     keywords = {
         "họ tên": ["khách", "họ", "tên", "khách hàng"],
-        "số điện thoại": ["sdt", "sđt", "điện", "mobile", "phone"],
-        "địa chỉ": ["địa chỉ", "địa", "dc", "address"],
+        "số điện thoại": ["sdt", "sđt", "điện", "mobile"],
+        "địa chỉ": ["địa chỉ", "địa", "dc"],
         "tên hàng": ["sản phẩm", "gồm", "sp", "tên hàng"],
         "size": ["ghi chú", "mô tả", "size"],
         "số tiền thu hộ": ["cod", "thu hộ", "tiền"]
@@ -37,57 +38,52 @@ if uploaded_files:
                 xls = pd.ExcelFile(file)
                 sheet_names = xls.sheet_names
             else:
-                sheet_names = [None]  # CSV
+                sheet_names = [None]  # only one for CSV
 
             for sheet_name in sheet_names:
-                df_raw = pd.read_excel(file, sheet_name=sheet_name, header=None) if ext == "xlsx" else pd.read_csv(file, header=None)
-                first_row = df_raw.iloc[0].astype(str)
+                df_temp = pd.read_excel(file, sheet_name=sheet_name, header=None) if ext == "xlsx" else pd.read_csv(file, header=None)
+                first_row = df_temp.iloc[0].astype(str)
                 numeric_count = sum([cell.strip().replace('.', '', 1).isdigit() for cell in first_row])
 
                 if numeric_count >= len(first_row) - 2:
-                    # Không có tiêu đề
-                    df = df_raw.copy()
+                    df = df_temp.copy()
                     df.columns = [f"Cột {i+1}" for i in range(df.shape[1])]
-                    df.columns.values[2:10] = ["Họ tên", "Số điện thoại", "Địa chỉ", "Tên hàng", "Size", "Tiền COD", "Ngày tạo", "Nguồn đơn"]
-                    df = df.rename(columns={
-                        "Họ tên": "họ tên",
-                        "Số điện thoại": "số điện thoại",
-                        "Địa chỉ": "địa chỉ",
-                        "Tên hàng": "tên hàng",
-                        "Size": "size",
-                        "Tiền COD": "số tiền thu hộ"
-                    })
-                    mapping = {
-                        "họ tên": "họ tên",
-                        "số điện thoại": "số điện thoại",
-                        "địa chỉ": "địa chỉ",
-                        "tên hàng": "tên hàng",
-                        "size": "size",
-                        "số tiền thu hộ": "số tiền thu hộ"
+                    auto_mapping = {
+                        "họ tên": df.columns[2] if len(df.columns) > 2 else None,
+                        "số điện thoại": df.columns[3] if len(df.columns) > 3 else None,
+                        "địa chỉ": df.columns[4] if len(df.columns) > 4 else None,
+                        "tên hàng": df.columns[5] if len(df.columns) > 5 else None,
+                        "size": df.columns[6] if len(df.columns) > 6 else None,
+                        "số tiền thu hộ": df.columns[7] if len(df.columns) > 7 else None
                     }
                 else:
-                    df = df_raw[1:].copy()
+                    df = df_temp[1:].copy()
                     df.columns = first_row
-                    columns = df.columns.tolist()
-                    mapping = auto_map_columns(columns)
+                    auto_mapping = auto_map_columns(df.columns.tolist())
 
                 st.subheader(f"🔎 Sheet: {sheet_name if sheet_name else 'CSV'}")
-                st.write("📋 Các cột:", df.columns.tolist())
+                st.write("📋 Các cột:")
+                st.write(df.iloc[0].to_dict())
 
-                # Cho phép chỉnh sửa nếu thiếu
-                required = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"]
-                for field in required:
-                    if field not in mapping:
-                        mapping[field] = st.selectbox(f"🛠 Chọn cột cho '{field}'", options=df.columns, key=field+str(sheet_name)+file.name)
+                required_fields = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"]
+                final_mapping = {}
 
-                # Gộp tên hàng và size
-                df["tên sản phẩm"] = df[mapping["tên hàng"]].astype(str) + " Size " + df[mapping["size"]].astype(str)
+                for field in required_fields:
+                    if auto_mapping.get(field):
+                        final_mapping[field] = auto_mapping[field]
+                    else:
+                        final_mapping[field] = st.selectbox(
+                            f"Chọn cột cho '{field.capitalize()}'",
+                            options=df.columns.tolist(),
+                            key=field + str(sheet_name) + file.name
+                        )
 
-                # Tạo file chuẩn GHN
+                df["tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str) + " Size " + df[final_mapping["size"]].astype(str)
+
                 new_df = pd.DataFrame({
-                    "Họ tên người nhận": df[mapping["họ tên"]],
-                    "Số điện thoại người nhận": df[mapping["số điện thoại"]],
-                    "Địa chỉ": df[mapping["địa chỉ"]],
+                    "Họ tên người nhận": df[final_mapping["họ tên"]],
+                    "Số điện thoại người nhận": df[final_mapping["số điện thoại"]],
+                    "Địa chỉ": df[final_mapping["địa chỉ"]],
                     "Gói cước": 2,
                     "Yêu cầu đơn hàng": 2,
                     "Tên sản phẩm": df["tên sản phẩm"],
@@ -96,9 +92,9 @@ if uploaded_files:
                     "Chiều dài (cm)": 10,
                     "Chiều rộng (cm)": 10,
                     "Chiều cao (cm)": 10,
-                    "Giá trị hàng hóa": df[mapping["số tiền thu hộ"]],
+                    "Giá trị hàng hóa": df[final_mapping["số tiền thu hộ"]],
                     "Khai giá (Có/Không)": "x",
-                    "Tiền thu hộ (COD)": df[mapping["số tiền thu hộ"]],
+                    "Tiền thu hộ (COD)": df[final_mapping["số tiền thu hộ"]],
                     "Shop trả phí vận chuyển": "x",
                     "Gửi hàng tại bưu cục": "",
                     "Mã hàng riêng của shop": "",
@@ -110,13 +106,13 @@ if uploaded_files:
                 all_data.append(new_df)
 
         except Exception as e:
-            st.error(f"❌ Lỗi xử lý file {file.name}: {e}")
+            st.error(f"❌ Lỗi đọc file {file.name}: {e}")
 
     if all_data:
         final = pd.concat(all_data, ignore_index=True)
-        st.success("✅ Hoàn tất xử lý toàn bộ file!")
+        st.success("✅ Đã xử lý thành công tất cả file và sheet!")
         st.dataframe(final)
 
         towrite = io.BytesIO()
-        final.to_excel(towrite, index=False, engine='openpyxl')
+        final.to_excel(towrite, index=False, engine="openpyxl")
         st.download_button("📥 Tải file GHN", data=towrite.getvalue(), file_name="GHN_output.xlsx")
