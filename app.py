@@ -1,10 +1,18 @@
-
 import streamlit as st
 import pandas as pd
 import io
 
 st.set_page_config(page_title="GHN Upload Tool", layout="wide")
 st.title("📦 GHN Excel Upload - Auto + Manual Column Mapping (Multi-Sheet)")
+
+# 🔽 Chọn mẫu xuất dữ liệu
+st.subheader("🛠 Chọn mẫu xuất đơn hàng")
+template = st.radio(
+    "Chọn cách xuất đơn hàng",
+    options=["Mẫu 1: Đặt tên chị Tiền", "Mẫu 2: Đặt tên chị Linh"],
+    index=0,
+    horizontal=True
+)
 
 def auto_map_columns(columns):
     mapping = {}
@@ -26,9 +34,7 @@ def auto_map_columns(columns):
                 break
     return mapping
 
-template = st.radio("📋 Chọn mẫu xuất đơn:", ["Mẫu 1: Đặt tên chị Tiền", "Mẫu 2: Đặt tên chị Linh"])
-
-uploaded_files = st.file_uploader("Tải lên file .xlsx hoặc .csv", accept_multiple_files=True)
+uploaded_files = st.file_uploader("📂 Tải lên file .xlsx hoặc .csv", accept_multiple_files=True)
 
 if uploaded_files:
     all_data = []
@@ -41,7 +47,7 @@ if uploaded_files:
                 xls = pd.ExcelFile(file)
                 sheet_names = xls.sheet_names
             else:
-                sheet_names = [None]
+                sheet_names = [None]  # CSV chỉ có 1 sheet
 
             for sheet_name in sheet_names:
                 df_temp = pd.read_excel(file, sheet_name=sheet_name, header=None) if ext == "xlsx" else pd.read_csv(file, header=None)
@@ -64,9 +70,8 @@ if uploaded_files:
                     df.columns = first_row
                     auto_mapping = auto_map_columns(df.columns.tolist())
 
-                st.subheader(f"🔎 Sheet: {sheet_name if sheet_name else 'CSV'}")
-                st.write("📋 Các cột:")
-                st.write(df.iloc[0].to_dict())
+                st.subheader(f"📄 Sheet: {sheet_name if sheet_name else 'CSV'}")
+                st.write("📋 Các cột phát hiện:", df.columns.tolist())
 
                 required_fields = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"]
                 final_mapping = {}
@@ -76,7 +81,7 @@ if uploaded_files:
                         final_mapping[field] = auto_mapping[field]
                     else:
                         final_mapping[field] = st.selectbox(
-                            f"Chọn cột cho '{field.capitalize()}'",
+                            f"🛠 Chọn cột cho '{field.capitalize()}'",
                             options=df.columns.tolist(),
                             key=field + str(sheet_name) + file.name
                         )
