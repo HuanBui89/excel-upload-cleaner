@@ -1,159 +1,136 @@
 import streamlit as st
 import pandas as pd
-import io
-from datetime import datetime
 from openpyxl import load_workbook
-from openpyxl.utils.dataframe import dataframe_to_rows
-
-# Đường dẫn đến template GHN
-TEMPLATE_PATH = "GHN_FileMauChuyenPhat_HangNhe_2023 (11).xlsx"
+from tempfile import NamedTemporaryFile
+from datetime import datetime
+import io
 
 st.set_page_config(page_title="GHN Upload Tool", layout="wide")
-st.title("📦 GHN Excel Upload - Auto + Manual Column Mapping (Multi-Sheet)")
+st.title("📦 GHN Excel Upload - Auto Mapping + Chuẩn File Mẫu GHN")
 
-template_option = st.radio("🎯 Chọn mẫu xuất file", options=["Mẫu 1 (Chị Tiền)", "Mẫu 2 (Chị Linh)"], index=1)
+template_option = st.radio("🎯 Chọn mẫu xuất file", ["Mẫu 1 (Chị Tiền)", "Mẫu 2 (Chị Linh)"], index=1)
+uploaded_files = st.file_uploader("📤 Tải lên file Excel (.xlsx)", type=["xlsx"], accept_multiple_files=True)
 
 def auto_map_columns(columns):
-    mapping = {}
     keywords = {
-        "họ tên": ["khách", "họ", "tên", "khách hàng"],
-        "số điện thoại": ["sdt", "sđt", "điện", "mobile"],
-        "địa chỉ": ["địa chỉ", "địa", "dc"],
-        "tên hàng": ["sản phẩm", "gồm", "sp", "tên hàng"],
-        "size": ["ghi chú", "mô tả", "size"],
-        "số tiền thu hộ": ["cod", "thu hộ", "tiền"]
+        "họ tên": ["họ", "tên", "khách"],
+        "số điện thoại": ["sdt", "số điện thoại", "mobile"],
+        "địa chỉ": ["địa chỉ", "phường", "quận", "đường"],
+        "tên hàng": ["tên hàng", "sản phẩm"],
+        "size": ["size", "kích thước", "ghi chú"],
+        "số tiền thu hộ": ["tiền", "thu hộ", "cod"]
     }
-    for key, kws in keywords.items():
+    mapping = {}
+    for key, keys in keywords.items():
         for col in columns:
-            for kw in kws:
-                if kw in str(col).lower():
-                    mapping[key] = col
-                    break
-            if key in mapping:
+            if any(k in str(col).lower() for k in keys):
+                mapping[key] = col
                 break
     return mapping
 
-uploaded_files = st.file_uploader("📂 Tải lên file Excel", type=["xlsx"], accept_multiple_files=True)
-
 if uploaded_files:
     all_data = []
-    filenames = set()
-    duplicates = set()
+    seen_files = set()
+    duplicate_files = set()
 
     for file in uploaded_files:
-        if file.name in filenames:
-            duplicates.add(file.name)
+        if file.name in seen_files:
+            duplicate_files.add(file.name)
             continue
-        filenames.add(file.name)
+        seen_files.add(file.name)
 
         try:
             xls = pd.ExcelFile(file)
-            for sheet_name in xls.sheet_names:
-                df_temp = pd.read_excel(file, sheet_name=sheet_name, header=None)
-                first_row = df_temp.iloc[0].astype(str)
-                numeric_count = sum([cell.strip().replace('.', '', 1).isdigit() for cell in first_row])
+            for sheet in xls.sheet_names:
+                df_raw = pd.read_excel(xls, sheet_name=sheet, header=None)
+                header = df_raw.iloc[0].astype(str)
+                df = df_raw[1:].copy()
+                df.columns = header
 
-                if numeric_count >= len(first_row) - 2:
-                    df = df_temp.copy()
-                    df.columns = [f"Cột {i+1}" for i in range(df.shape[1])]
-                    auto_mapping = {
-                        "họ tên": df.columns[2],
-                        "số điện thoại": df.columns[3],
-                        "địa chỉ": df.columns[4],
-                        "tên hàng": df.columns[5],
-                        "size": df.columns[6],
-                        "số tiền thu hộ": df.columns[7],
-                    }
-                else:
-                    df = df_temp[1:].copy()
-                    df.columns = first_row
-                    auto_mapping = auto_map_columns(df.columns.tolist())
+                mapping = auto_map_columns(df.columns)
+                required = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"]
+                if not all(k in mapping for k in required):
+                    st.error(f"❌ Thiếu cột trong file {file.name}, sheet {sheet}")
+                    continue
 
-                required_fields = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"]
-                final_mapping = {}
-                for field in required_fields:
-                    if auto_mapping.get(field):
-                        final_mapping[field] = auto_mapping[field]
-                    else:
-                        final_mapping[field] = st.selectbox(
-                            f"Chọn cột cho '{field}'", df.columns.tolist(), key=field + file.name
-                        )
-
-                df["tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str) + " Size " + df[final_mapping["size"]].astype(str)
+                df["Tên sản phẩm"] = df[mapping["tên hàng"]].astype(str) + " Size " + df[mapping["size"]].astype(str)
                 df["Ghi chú thêm"] = ""
-
                 if template_option == "Mẫu 2 (Chị Linh)":
-                    df["Tên người nhận"] = df[final_mapping["họ tên"]].reset_index(drop=True)
-                    df["Số thứ tự"] = range(1, len(df)+1)
-                    df["Tên người nhận"] = df["Số thứ tự"].astype(str) + "_" + df["Tên người nhận"]
-                    df["Ghi chú thêm"] = df["tên sản phẩm"] + " - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
-                else:
-                    df["Tên người nhận"] = df[final_mapping["họ tên"]]
+                    df["Ghi chú thêm"] = df["Tên sản phẩm"] + " - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
 
-                df_final = pd.DataFrame({
-                    "Tên người nhận": df["Tên người nhận"],
-                    "Số điện thoại": df[final_mapping["số điện thoại"]],
-                    "Số nhà/ngõ/ngách/hẻm, Đường/Phố, Phường/Xã, Quận/Huyện, Tỉnh/Thành": df[final_mapping["địa chỉ"]],
+                new_df = pd.DataFrame({
+                    "Tên người nhận": df[mapping["họ tên"]],
+                    "Số điện thoại": df[mapping["số điện thoại"]],
+                    "Số nhà/ngõ/ngách/hẻm, Đường/Phố, Phường/Xã, Quận/Huyện, Tỉnh/Thành": df[mapping["địa chỉ"]],
                     "Gói cước": 2,
-                    "Tiền thu hộ": df[final_mapping["số tiền thu hộ"]],
+                    "Tiền thu hộ": df[mapping["số tiền thu hộ"]],
                     "Yêu cầu đơn hàng": 2,
                     "Khối lượng (gram)": 500,
                     "Chiều dài (cm)": 10,
                     "Chiều rộng (cm)": 10,
                     "Chiều cao (cm)": 10,
                     "Khai giá": "x",
-                    "Giá trị hàng hóa": df[final_mapping["số tiền thu hộ"]],
+                    "Giá trị hàng hóa": df[mapping["số tiền thu hộ"]],
                     "Shop trả ship": "x",
                     "Gửi hàng tại bưu cục": "",
                     "Mã đơn hàng riêng": "",
-                    "Sản phẩm": df["tên sản phẩm"],
+                    "Sản phẩm": df["Tên sản phẩm"],
                     "Ghi chú thêm": df["Ghi chú thêm"],
                     "Ca lấy": 1,
                     "Giao hàng thất bại thu tiền": 30000
                 })
 
-                all_data.append(df_final)
-
+                all_data.append(new_df)
         except Exception as e:
             st.error(f"❌ Lỗi xử lý file {file.name}: {e}")
 
-    if duplicates:
-        st.warning(f"⚠️ File trùng tên đã bị bỏ qua: {', '.join(duplicates)}")
+    if duplicate_files:
+        st.warning(f"⚠️ Có file trùng tên bị bỏ qua: {', '.join(duplicate_files)}")
 
     if all_data:
-        full_data = pd.concat(all_data, ignore_index=True)
-        st.success("✅ Đã xử lý thành công tất cả file và sheet!")
-        st.dataframe(full_data)
+        final = pd.concat(all_data, ignore_index=True)
 
-        # Xuất file GHN đầy đủ
-        output = io.BytesIO()
-        full_data.to_excel(output, index=False, engine="openpyxl")
-        st.download_button("📥 Tải file GHN", data=output.getvalue(), file_name="GHN_output.xlsx")
+        if template_option == "Mẫu 2 (Chị Linh)":
+            final["Tên người nhận"] = [f"{i+1}_{name}" for i, name in enumerate(final["Tên người nhận"])]
 
-        # Tách file nếu mẫu 2 và nhiều hơn 300 dòng
-        if template_option == "Mẫu 2 (Chị Linh)" and len(full_data) > 300:
+        st.success("✅ Đã xử lý thành công! Xem trước dữ liệu:")
+        st.dataframe(final)
+
+        # Load file mẫu
+        try:
+            template_path = "GHN_FileMauChuyenPhat_HangNhe_2023 (11).xlsx"
+            wb = load_workbook(template_path)
+            ws = wb.active
+
+            for row in final.itertuples(index=False, name=None):
+                ws.append(row)
+
+            with NamedTemporaryFile(delete=False, suffix=".xlsx") as f:
+                wb.save(f.name)
+                f.seek(0)
+                st.download_button("📥 Tải file GHN", data=f.read(), file_name="GHN_output.xlsx")
+        except Exception as e:
+            st.error(f"❌ Lỗi xuất file: {e}")
+
+        # Tách nếu mẫu 2 > 300
+        if template_option == "Mẫu 2 (Chị Linh)" and len(final) > 300:
             st.subheader("📂 Tách file GHN thành từng 300 đơn")
-
-            today = datetime.today().strftime("%-d.%-m")
-            for i in range(0, len(full_data), 300):
-                chunk = full_data.iloc[i:i+300].copy()
-                start, end = i + 1, i + len(chunk)
-
-                # Load template
-                try:
-                    wb = load_workbook(TEMPLATE_PATH)
+            try:
+                for i in range(0, len(final), 300):
+                    chunk = final.iloc[i:i+300]
+                    wb = load_workbook(template_path)
                     ws = wb.active
+                    for row in chunk.itertuples(index=False, name=None):
+                        ws.append(row)
 
-                    # Ghi dữ liệu từ dòng 5
-                    for r in dataframe_to_rows(chunk, index=False, header=False):
-                        ws.append(r)
-
-                    temp_bytes = io.BytesIO()
-                    wb.save(temp_bytes)
-                    temp_bytes.seek(0)
-
+                    today = datetime.today().strftime("%-d.%-m")
+                    start = i + 1
+                    end = i + len(chunk)
                     filename = f"GHN_{today}_SHOP TUONG VY_TOI {start}-{end}.xlsx"
-                    st.download_button(f"📥 Tải {filename}", data=temp_bytes, file_name=filename)
 
-                except Exception as e:
-                    st.error(f"Lỗi khi tạo file tách {start}-{end}: {e}")
+                    with NamedTemporaryFile(delete=False, suffix=".xlsx") as f:
+                        wb.save(f.name)
+                        f.seek(0)
+                        st.download_button(f"📎 Tải file {filename}", data=f.read(), file_name=filename)
+            except Exception as e:
+                st.error(f"❌ Lỗi khi tách file: {e}")
