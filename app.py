@@ -37,6 +37,7 @@ if uploaded_files:
     all_dfs = []
     file_hashes = set()
     duplicate_files = []
+    split_filenames = []
 
     for file in uploaded_files:
         file_content = file.read()
@@ -139,5 +140,7 @@ if uploaded_files:
                     start = idx * 300 + 1
                     end = min((idx + 1) * 300, len(result))
                     filename = f"GHN_{now}_SHOP TUONG VY_TOI {start}-{end}.xlsx"
-                    chunk.to_excel(os.path.join("/mnt/data", filename), index=False)
-                st.success("✅ Đã tách và lưu file theo từng 300 đơn tại thư mục download!")
+                    filepath = os.path.join("/mnt/data", filename)
+                    chunk.to_excel(filepath, index=False)
+                    st.markdown(f"📥 [Tải {filename}](sandbox:/mnt/data/{filename})")
+                st.success("✅ Đã tách và tạo link tải nhanh các file!")
