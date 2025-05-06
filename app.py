@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import io
@@ -89,46 +90,50 @@ if uploaded_files:
                 df["tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str) + " Size " + df[final_mapping["size"]].astype(str)
                 df["Tên người nhận"] = df[final_mapping["họ tên"]].astype(str)
 
-                if template == "Mẫu 2: Đặt tên chị Linh":
-                    df = df.reset_index(drop=True)
-                    df["Tên người nhận"] = (df.index + 1).astype(str) + "_" + df["Tên người nhận"]
-                    df["Ghi chú thêm"] = df["tên sản phẩm"] + " - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
-                else:
-                    df["Ghi chú thêm"] = ""
+                # Thêm tên sheet để giữ nguyên gốc nếu muốn debug
+                df["__sheet_source__"] = sheet_name if sheet_name else "CSV"
+                df["__file_name__"] = file.name
 
-                new_df = pd.DataFrame({
-                    "Họ tên người nhận": df["Tên người nhận"],
-                    "Số điện thoại người nhận": df[final_mapping["số điện thoại"]],
-                    "Địa chỉ": df[final_mapping["địa chỉ"]],
-                    "Gói cước": 2,
-                    "Yêu cầu đơn hàng": 2,
-                    "Tên sản phẩm": df["tên sản phẩm"],
-                    "Số lượng": 1,
-                    "Khối lượng (gram)": 500,
-                    "Chiều dài (cm)": 10,
-                    "Chiều rộng (cm)": 10,
-                    "Chiều cao (cm)": 10,
-                    "Giá trị hàng hóa": df[final_mapping["số tiền thu hộ"]],
-                    "Khai giá (Có/Không)": "x",
-                    "Tiền thu hộ (COD)": df[final_mapping["số tiền thu hộ"]],
-                    "Shop trả phí vận chuyển": "x",
-                    "Gửi hàng tại bưu cục": "",
-                    "Mã hàng riêng của shop": "",
-                    "Ghi chú thêm": df["Ghi chú thêm"],
-                    "Ca lấy hàng": 1,
-                    "Giao thất bại thu tiền": 30000
-                })
-
-                all_data.append(new_df)
+                all_data.append(df)
 
         except Exception as e:
             st.error(f"❌ Lỗi đọc file {file.name}: {e}")
 
     if all_data:
-        final = pd.concat(all_data, ignore_index=True)
+        full_df = pd.concat(all_data, ignore_index=True)
+
+        if template == "Mẫu 2: Đặt tên chị Linh":
+            full_df["Tên người nhận"] = (full_df.index + 1).astype(str) + "_" + full_df["Tên người nhận"]
+            full_df["Ghi chú thêm"] = full_df["tên sản phẩm"] + " - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
+        else:
+            full_df["Ghi chú thêm"] = ""
+
+        final_df = pd.DataFrame({
+            "Họ tên người nhận": full_df["Tên người nhận"],
+            "Số điện thoại người nhận": full_df[final_mapping["số điện thoại"]],
+            "Địa chỉ": full_df[final_mapping["địa chỉ"]],
+            "Gói cước": 2,
+            "Yêu cầu đơn hàng": 2,
+            "Tên sản phẩm": full_df["tên sản phẩm"],
+            "Số lượng": 1,
+            "Khối lượng (gram)": 500,
+            "Chiều dài (cm)": 10,
+            "Chiều rộng (cm)": 10,
+            "Chiều cao (cm)": 10,
+            "Giá trị hàng hóa": full_df[final_mapping["số tiền thu hộ"]],
+            "Khai giá (Có/Không)": "x",
+            "Tiền thu hộ (COD)": full_df[final_mapping["số tiền thu hộ"]],
+            "Shop trả phí vận chuyển": "x",
+            "Gửi hàng tại bưu cục": "",
+            "Mã hàng riêng của shop": "",
+            "Ghi chú thêm": full_df["Ghi chú thêm"],
+            "Ca lấy hàng": 1,
+            "Giao thất bại thu tiền": 30000
+        })
+
         st.success("✅ Đã xử lý thành công tất cả file và sheet!")
-        st.dataframe(final)
+        st.dataframe(final_df)
 
         towrite = io.BytesIO()
-        final.to_excel(towrite, index=False, engine="openpyxl")
+        final_df.to_excel(towrite, index=False, engine="openpyxl")
         st.download_button("📥 Tải file GHN", data=towrite.getvalue(), file_name="GHN_output.xlsx")
