@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import io
@@ -25,6 +26,8 @@ def auto_map_columns(columns):
                 break
     return mapping
 
+template = st.radio("📋 Chọn mẫu xuất đơn:", ["Mẫu 1: Đặt tên chị Tiền", "Mẫu 2: Đặt tên chị Linh"])
+
 uploaded_files = st.file_uploader("Tải lên file .xlsx hoặc .csv", accept_multiple_files=True)
 
 if uploaded_files:
@@ -38,7 +41,7 @@ if uploaded_files:
                 xls = pd.ExcelFile(file)
                 sheet_names = xls.sheet_names
             else:
-                sheet_names = [None]  # only one for CSV
+                sheet_names = [None]
 
             for sheet_name in sheet_names:
                 df_temp = pd.read_excel(file, sheet_name=sheet_name, header=None) if ext == "xlsx" else pd.read_csv(file, header=None)
@@ -79,9 +82,17 @@ if uploaded_files:
                         )
 
                 df["tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str) + " Size " + df[final_mapping["size"]].astype(str)
+                df["Tên người nhận"] = df[final_mapping["họ tên"]].astype(str)
+
+                if template == "Mẫu 2: Đặt tên chị Linh":
+                    df = df.reset_index(drop=True)
+                    df["Tên người nhận"] = (df.index + 1).astype(str) + "_" + df["Tên người nhận"]
+                    df["Ghi chú thêm"] = df["tên sản phẩm"] + " - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
+                else:
+                    df["Ghi chú thêm"] = ""
 
                 new_df = pd.DataFrame({
-                    "Họ tên người nhận": df[final_mapping["họ tên"]],
+                    "Họ tên người nhận": df["Tên người nhận"],
                     "Số điện thoại người nhận": df[final_mapping["số điện thoại"]],
                     "Địa chỉ": df[final_mapping["địa chỉ"]],
                     "Gói cước": 2,
@@ -98,7 +109,7 @@ if uploaded_files:
                     "Shop trả phí vận chuyển": "x",
                     "Gửi hàng tại bưu cục": "",
                     "Mã hàng riêng của shop": "",
-                    "Ghi chú thêm": "",
+                    "Ghi chú thêm": df["Ghi chú thêm"],
                     "Ca lấy hàng": 1,
                     "Giao thất bại thu tiền": 30000
                 })
