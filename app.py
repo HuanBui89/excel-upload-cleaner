@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import io
 import hashlib
+import datetime
+import os
 
 st.set_page_config(page_title="GHN Upload Tool", layout="wide")
 st.title("📦 GHN Excel Upload - Auto + Manual Column Mapping (Multi-Sheet)")
@@ -101,7 +103,7 @@ if uploaded_files:
         else:
             full_df.insert(0, "Tên người nhận", full_df["Tên"])
 
-        final = pd.DataFrame({
+        result = pd.DataFrame({
             "Tên người nhận": full_df["Tên người nhận"],
             "Số điện thoại": full_df["SĐT"],
             "Số nhà/ngõ/ngách/hẻm, Đường/Phố, Phường/Xã, Quận/Huyện, Tỉnh/Thành": full_df["Địa chỉ"],
@@ -124,8 +126,18 @@ if uploaded_files:
         })
 
         st.success("✅ Đã xử lý thành công tất cả file và sheet!")
-        st.dataframe(final)
+        st.dataframe(result)
 
         output = io.BytesIO()
-        final.to_excel(output, index=False, engine='openpyxl')
+        result.to_excel(output, index=False, engine='openpyxl')
         st.download_button("📥 Tải file GHN", data=output.getvalue(), file_name="GHN_output.xlsx")
+
+        if mau.startswith("Mẫu 2") and len(result) > 300:
+            if st.button("📂 Tách file GHN thành từng 300 đơn"):
+                now = datetime.datetime.now().strftime("%-d.%-m")
+                for idx, chunk in enumerate([result[i:i+300] for i in range(0, len(result), 300)]):
+                    start = idx * 300 + 1
+                    end = min((idx + 1) * 300, len(result))
+                    filename = f"GHN_{now}_SHOP TUONG VY_TOI {start}-{end}.xlsx"
+                    chunk.to_excel(os.path.join("/mnt/data", filename), index=False)
+                st.success("✅ Đã tách và lưu file theo từng 300 đơn tại thư mục download!")
