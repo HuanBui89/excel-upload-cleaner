@@ -2,15 +2,17 @@ import streamlit as st
 import pandas as pd
 import io
 from datetime import datetime
+from openpyxl import load_workbook
+from openpyxl.utils.dataframe import dataframe_to_rows
+from openpyxl.worksheet.table import Table, TableStyleInfo
 
 st.set_page_config(page_title="GHN Upload Tool", layout="wide")
 st.title("📦 GHN Excel Upload - Auto + Manual Column Mapping (Multi-Sheet)")
 
 # Mặc định chọn mẫu 2
 template_option = st.radio("Chọn mẫu xuất kết quả:", options=["Mẫu 1 - Chị Tiền", "Mẫu 2 - Chị Linh"], index=1,
-                              help="Mẫu 1 giữ nguyên dữ liệu | Mẫu 2 sẽ thêm tên + đánh số + ghi chú đặc biệt")
+                          help="Mẫu 1 giữ nguyên dữ liệu | Mẫu 2 sẽ thêm ghi chú đặc biệt")
 
-# Định nghĩa hàm tự map cột
 def auto_map_columns(columns):
     mapping = {}
     keywords = {
@@ -88,11 +90,11 @@ if uploaded_files:
                         )
 
                 df["tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str)
-                df["size ghi"] = df[final_mapping["size"]].astype(str)
 
                 if template_option == "Mẫu 2 - Chị Linh":
                     df["Họ tên người nhận"] = df[final_mapping["họ tên"]].astype(str)
-                    df["Ghi chú thêm"] = df["tên sản phẩm"] + " Size " + df["size ghi"] + " - KHÁCH KHÔNG NHẢN THU 30K, GỌI VỀ SHOP KHI ĐƯẬN SAI THÔNG TIN"
+                    df["Ghi chú thêm"] = df[final_mapping["tên hàng"]].astype(str) + " Size " + df[final_mapping["size"]].astype(str) + \
+                        " - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
                 else:
                     df["Họ tên người nhận"] = df[final_mapping["họ tên"]]
                     df["Ghi chú thêm"] = ""
@@ -124,41 +126,30 @@ if uploaded_files:
             st.error(f"❌ Lỗi đọc file {file.name}: {e}")
 
     if duplicates:
-        st.warning(f"⚠️ Có {len(duplicates)} file trùng tên bỏ qua: {', '.join(duplicates)}")
+        st.warning(f"⚠️ Có file trùng tên bị bỏ qua: {', '.join(duplicates)}")
 
     if all_data:
         final = pd.concat(all_data, ignore_index=True)
-
-        if template_option == "Mẫu 2 - Chị Linh":
-            final.insert(0, "STT", range(1, len(final)+1))
-            final["Tên người nhận"] = final["STT"].astype(str) + "_" + final["Tên người nhận"]
-
-        st.success("✅ Đã xử lý thành công tất cả file và sheet!")
+        st.success("✅ Đã xử lý thành công! Xem trước dữ liệu:")
         st.dataframe(final)
 
         towrite = io.BytesIO()
         with pd.ExcelWriter(towrite, engine="openpyxl") as writer:
-            final.to_excel(writer, index=False, sheet_name="GHN")
-        st.download_button("📅 Tải file GHN", data=towrite.getvalue(), file_name="GHN_output.xlsx")
+            final.to_excel(writer, index=False, sheet_name="Sheet1")
+        st.download_button("📥 Tải file GHN", data=towrite.getvalue(), file_name="GHN_output.xlsx")
 
         if template_option == "Mẫu 2 - Chị Linh" and len(final) > 300:
-            st.subheader("📁 Tách file GHN thành từng 300 đơn")
+            st.subheader("📂 Tách file GHN thành từng 300 đơn")
             today = datetime.today().strftime("%-d.%-m")
-            shop = "SHOP TUONG VY"
             prefix = "GHN"
+            shop = "SHOP TUONG VY"
 
             for i in range(0, len(final), 300):
                 chunk = final.iloc[i:i+300]
                 start = i + 1
                 end = i + len(chunk)
                 filename = f"{prefix}_{today}_{shop}_TOI {start}-{end}.xlsx"
-
-                chunk_buffer = io.BytesIO()
-                with pd.ExcelWriter(chunk_buffer, engine="openpyxl") as writer:
-                    chunk.to_excel(writer, index=False, sheet_name="GHN")
-                st.download_button(
-                    label=f"📅 Tải {filename}",
-                    data=chunk_buffer.getvalue(),
-                    file_name=filename,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
+                buffer = io.BytesIO()
+                with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+                    chunk.to_excel(writer, index=False, sheet_name="Sheet1")
+                st.download_button(f"📥 Tải {filename}", data=buffer.getvalue(), file_name=filename, mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
