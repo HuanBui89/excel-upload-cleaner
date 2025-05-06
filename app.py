@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import io
 from datetime import datetime
+from openpyxl import load_workbook
 
 st.set_page_config(page_title="GHN Upload Tool", layout="wide")
 st.title("📦 GHN Excel Upload - Auto + Manual Column Mapping (Multi-Sheet)")
@@ -11,7 +12,6 @@ template_option = st.radio("Chọn mẫu xuất kết quả:", options=["Mẫu 1
                               help="Mẫu 1 giữ nguyên dữ liệu | Mẫu 2 sẽ thêm tên + đánh số + ghi chú đặc biệt")
 
 # Định nghĩa hàm tự map cột
-
 def auto_map_columns(columns):
     mapping = {}
     keywords = {
@@ -141,12 +141,13 @@ if uploaded_files:
         final.to_excel(towrite, index=False, engine="openpyxl")
         st.download_button("📥 Tải file GHN", data=towrite.getvalue(), file_name="GHN_output.xlsx")
 
-        # Nút tách file nếu > 300 dòng
+        # Tách file nếu > 300 dòng với Mẫu 2
         if template_option == "Mẫu 2 - Chị Linh" and len(final) > 300:
             st.subheader("📂 Tách file GHN thành từng 300 đơn")
             today = datetime.today().strftime("%-d.%-m")
             prefix = "GHN"
             shop = "SHOP TUONG VY"
+            template_path = "GHN_FileMauChuyenPhat_HangNhe_2023.xlsx"
 
             for i in range(0, len(final), 300):
                 chunk = final.iloc[i:i+300]
@@ -154,8 +155,15 @@ if uploaded_files:
                 end = i + len(chunk)
                 filename = f"{prefix}_{today}_{shop}_TOI {start}-{end}.xlsx"
 
+                wb = load_workbook(template_path)
+                ws = wb.active
+
+                for r_idx, row in enumerate(chunk.itertuples(index=False), start=5):
+                    for c_idx, value in enumerate(row, start=1):
+                        ws.cell(row=r_idx, column=c_idx, value=value)
+
                 chunk_buffer = io.BytesIO()
-                chunk.to_excel(chunk_buffer, index=False, engine="openpyxl")
+                wb.save(chunk_buffer)
                 chunk_buffer.seek(0)
 
                 st.download_button(
