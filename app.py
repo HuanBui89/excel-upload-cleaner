@@ -93,15 +93,21 @@ if uploaded_files:
         st.success("✅ Đã xử lý thành công! Xem trước dữ liệu:")
         st.dataframe(final_df)
 
-        output = io.BytesIO()
-        template_wb = load_workbook(template_file)
-        with pd.ExcelWriter(output, engine="openpyxl") as writer:
-            writer.book = template_wb
-            writer.sheets = {ws.title: ws for ws in template_wb.worksheets}
-            final_df.to_excel(writer, sheet_name=template_wb.active.title, index=False, header=False, startrow=4)
-        output.seek(0)
+        if not final_df.empty:
+            output = io.BytesIO()
+            try:
+                template_wb = load_workbook(template_file)
+                with pd.ExcelWriter(output, engine="openpyxl") as writer:
+                    writer.book = template_wb
+                    writer.sheets = {ws.title: ws for ws in template_wb.worksheets}
+                    final_df.to_excel(writer, sheet_name=template_wb.active.title, index=False, header=False, startrow=4)
+                output.seek(0)
 
-        st.download_button("📥 Tải file GHN", data=output, file_name="GHN_output.xlsx")
+                st.download_button("📥 Tải file GHN", data=output, file_name="GHN_output.xlsx")
+            except Exception as e:
+                st.error(f"Lỗi khi ghi file Excel: {e}")
+        else:
+            st.warning("⚠️ Dữ liệu rỗng, không thể xuất file Excel.")
 
         if template_option == "Mẫu 2 - Chị Linh" and len(final_df) > 300:
             st.subheader("📂 Tách file GHN thành từng 300 đơn")
@@ -109,11 +115,14 @@ if uploaded_files:
             for i in range(0, len(final_df), 300):
                 chunk = final_df.iloc[i:i+300]
                 chunk_output = io.BytesIO()
-                wb = load_workbook(template_file)
-                with pd.ExcelWriter(chunk_output, engine="openpyxl") as writer:
-                    writer.book = wb
-                    writer.sheets = {ws.title: ws for ws in wb.worksheets}
-                    chunk.to_excel(writer, sheet_name=wb.active.title, index=False, header=False, startrow=4)
-                chunk_output.seek(0)
-                file_name = f"GHN_{today}_SHOP TUONG VY_TOI {i+1}-{i+len(chunk)}.xlsx"
-                st.download_button(f"📥 Tải {file_name}", data=chunk_output, file_name=file_name)
+                try:
+                    wb = load_workbook(template_file)
+                    with pd.ExcelWriter(chunk_output, engine="openpyxl") as writer:
+                        writer.book = wb
+                        writer.sheets = {ws.title: ws for ws in wb.worksheets}
+                        chunk.to_excel(writer, sheet_name=wb.active.title, index=False, header=False, startrow=4)
+                    chunk_output.seek(0)
+                    file_name = f"GHN_{today}_SHOP TUONG VY_TOI {i+1}-{i+len(chunk)}.xlsx"
+                    st.download_button(f"📥 Tải {file_name}", data=chunk_output, file_name=file_name)
+                except Exception as e:
+                    st.error(f"❌ Lỗi khi tách file từ {i+1}-{i+len(chunk)}: {e}")
