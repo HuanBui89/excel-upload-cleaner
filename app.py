@@ -25,7 +25,6 @@ def auto_map_columns(columns):
                 break
     return mapping
 
-# Mặc định chọn Mẫu 2 (Chị Linh)
 style = st.radio("📌 Chọn mẫu kết quả", ["Mẫu 1 (Chị Tiền)", "Mẫu 2 (Chị Linh)"], index=1, horizontal=True)
 st.markdown(f"<div style='background-color: {'#e0f7fa' if style=='Mẫu 1 (Chị Tiền)' else '#ffebee'}; padding: 10px; font-weight: bold;'>{style}</div>", unsafe_allow_html=True)
 
@@ -97,6 +96,12 @@ if uploaded_files:
             df["ghi chú thêm"] = ""
 
             full_df = pd.concat([full_df, df], ignore_index=True)
+
+        # Cảnh báo trùng lặp
+        dup_mask = full_df.duplicated(subset=["họ tên", "số điện thoại", "địa chỉ"], keep=False)
+        if dup_mask.any():
+            st.warning("⚠️ Phát hiện đơn hàng bị trùng tên + số điện thoại + địa chỉ!")
+            st.dataframe(full_df[dup_mask])
 
         if style == "Mẫu 2 (Chị Linh)":
             full_df["STT"] = range(1, len(full_df) + 1)
