@@ -6,7 +6,7 @@ import os
 from datetime import datetime
 
 st.set_page_config(page_title="GHN Upload Tool", layout="wide")
-st.title("📦 GHN Excel Upload - Auto + Manual Column Mapping (Multi-Sheet)")
+st.title("📦 APP TẠO ĐƠN ĐƠN THEO MẪU GHN")
 
 log_file = "history_logs.csv"
 if not os.path.exists(log_file):
