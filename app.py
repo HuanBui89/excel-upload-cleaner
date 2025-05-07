@@ -165,7 +165,9 @@ if uploaded_files:
         if template_option == "Mẫu 2 - Chị Linh":
             final["Tên người nhận"] = (final.index + 1).astype(str) + "_" + final["Tên người nhận"].astype(str)
 
-        st.success(f"✅ Xử lý thành công! Tổng số đơn: {total_orders}")
+        mau_text = "Theo mẫu Chị Linh" if template_option == "Mẫu 2 - Chị Linh" else "Theo mẫu Chị Tiền"
+        st.success(f"✅ Xử lý thành công! Tổng số đơn: {total_orders} – {mau_text}")
+
         st.dataframe(final)
 
         towrite = io.BytesIO()
