@@ -178,10 +178,10 @@ if uploaded_files:
         log_df = pd.read_csv(log_file)
         new_log = pd.DataFrame([[datetime.now(), ', '.join([f.name for f in uploaded_files]), total_orders]],
                                columns=["Time", "Filename", "Total Orders"])
-       log_df = pd.concat([log_df, new_log])
-       log_df["Time"] = pd.to_datetime(log_df["Time"])
-       log_df = log_df.sort_values(by="Time", ascending=False)  # Sắp xếp mới nhất lên đầu
-       log_df.to_csv(log_file, index=False)
+           log_df = pd.concat([log_df, new_log])
+           log_df["Time"] = pd.to_datetime(log_df["Time"])
+           log_df = log_df.sort_values(by="Time", ascending=False)  # Sắp xếp mới nhất lên đầu
+           log_df.to_csv(log_file, index=False)
 
         # 👉 Tách file nếu trên 300 dòng
         if len(final) > 300 and template_option == "Mẫu 2 - Chị Linh":
