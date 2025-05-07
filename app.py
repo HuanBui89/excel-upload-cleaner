@@ -57,8 +57,8 @@ st.markdown("""
 query_params = st.experimental_get_query_params()
 if "template" in query_params:
     selected_template = query_params["template"][0]
-    if selected_template in ["Mẫu 1 - Chị Tiền", "Mẫu 2 - Chị]()_
-
+    if selected_template in ["Mẫu 1 - Chị Tiền", "Mẫu 2 - Chị Linh"]:
+        st.session_state.template_option = selected_template
 
 uploaded_files = st.file_uploader("Tải lên file .xlsx hoặc .csv", accept_multiple_files=True)
 
