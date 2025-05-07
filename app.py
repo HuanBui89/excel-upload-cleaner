@@ -11,17 +11,38 @@ st.title("📦 GHN Excel Upload - Auto + Manual Column Mapping (Multi-Sheet)")
 # CSS tùy chỉnh chữ to và tô màu nút chọn
 st.markdown("""
 <style>
-div.row-widget.stRadio > div{
-    flex-direction:row;
+div[data-baseweb="radio"] > div {
+    flex-direction: row;
+    gap: 20px;
 }
-.stRadio div[role=radiogroup] label:nth-of-type(1) div {
-    color: white !important; font-size:20px; background-color: #008000 !important; padding: 10px; border-radius: 10px;
+div[data-baseweb="radio"] label {
+    font-size: 20px !important;
+    font-weight: bold;
+    padding: 15px 25px;
+    border-radius: 10px;
+    border: 2px solid #ccc;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    cursor: pointer;
+    transition: 0.3s;
 }
-.stRadio div[role=radiogroup] label:nth-of-type(2) div {
-    color: white !important; font-size:20px; background-color: #FF0000 !important; padding: 10px; border-radius: 10px;
+div[data-baseweb="radio"] label:nth-child(1) {
+    background-color: #28a745 !important;
+    color: white;
+}
+div[data-baseweb="radio"] label:nth-child(2) {
+    background-color: #dc3545 !important;
+    color: white;
+}
+div[data-baseweb="radio"] label:hover {
+    transform: scale(1.05);
+    opacity: 0.9;
+}
+div[data-baseweb="radio"] label div:first-child {
+    display: none !important;
 }
 </style>
 """, unsafe_allow_html=True)
+
 
 template_option = st.radio("Chọn mẫu xuất kết quả:", ["Mẫu 1 - Chị Tiền", "Mẫu 2 - Chị Linh"], index=1)
 
