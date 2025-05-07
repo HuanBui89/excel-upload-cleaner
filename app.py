@@ -115,7 +115,7 @@ if uploaded_files:
         total_orders = len(final)
 
         if template_option == "Mẫu 2 - Chị Linh":
-    final["Tên người nhận"] = (final.index + 1).astype(str) + "_" + final["Tên người nhận"].astype(str)
+            final["Tên người nhận"] = (final.index + 1).astype(str) + "_" + final["Tên người nhận"].astype(str)
 
         st.success(f"✅ Xử lý thành công! Tổng số đơn: {total_orders}")
         st.dataframe(final)
