@@ -16,16 +16,45 @@ if not os.path.exists(log_file):
 if "template_option" not in st.session_state:
     st.session_state.template_option = "Mẫu 2 - Chị Linh"
 
-# Dropdown chọn mẫu có icon (dùng emoji)
+# Danh sách mẫu và nhãn có icon
 template_labels = {
     "Mẫu 1 - Chị Tiền": "📗 Mẫu 1 - Chị Tiền",
     "Mẫu 2 - Chị Linh": "📕 Mẫu 2 - Chị Linh"
 }
-
-# Dò ngược từ label -> value khi chọn
 label_to_value = {v: k for k, v in template_labels.items()}
 default_option = template_labels[st.session_state.get("template_option", "Mẫu 2 - Chị Linh")]
 
+# Tùy chỉnh CSS cho selectbox
+st.markdown(f"""
+<style>
+/* Container của selectbox */
+div[data-baseweb="select"] {{
+    width: fit-content !important;
+    min-width: 280px;
+    padding: 2px;
+}}
+
+/* Màu nền khi chọn */
+div[data-baseweb="select"] > div {{
+    background-color: {"#28a745" if "Mẫu 1" in default_option else "#dc3545"} !important;
+    color: white !important;
+    font-weight: bold;
+    border-radius: 6px;
+    border: 2px solid #000;
+}}
+
+/* Tùy chỉnh phần label */
+label[for="template_label"] {{
+    font-weight: bold;
+    font-size: 16px;
+    color: #dc3545;
+    margin-bottom: 5px;
+    display: block;
+}}
+</style>
+""", unsafe_allow_html=True)
+
+# Giao diện chọn mẫu
 selected_label = st.selectbox(
     "📝 Chọn mẫu xuất kết quả:",
     options=list(template_labels.values()),
@@ -33,7 +62,7 @@ selected_label = st.selectbox(
     key="template_label"
 )
 
-# Cập nhật lại session_state cho template_option
+# Cập nhật lại session_state
 st.session_state.template_option = label_to_value[selected_label]
 template_option = st.session_state.template_option
 
