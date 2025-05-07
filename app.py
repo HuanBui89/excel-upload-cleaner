@@ -16,51 +16,27 @@ if not os.path.exists(log_file):
 if "template_option" not in st.session_state:
     st.session_state.template_option = "Mẫu 2 - Chị Linh"
 
-st.markdown("""
-<style>
-.choice-box {{
-    display: flex;
-    gap: 20px;
-    margin-bottom: 20px;
-}}
-.choice-option {{
-    flex: 1;
-    text-align: center;
-    padding: 15px;
-    border-radius: 10px;
-    font-size: 20px;
-    font-weight: bold;
-    cursor: pointer;
-    border: 3px solid transparent;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}}
-.choice-option.red {{ background-color: #dc3545; color: white; }}
-.choice-option.green {{ background-color: #28a745; color: white; }}
-.choice-option.selected {{ border: 4px solid #000; }}
-</style>
+# Dropdown chọn mẫu có icon (dùng emoji)
+template_labels = {
+    "Mẫu 1 - Chị Tiền": "📗 Mẫu 1 - Chị Tiền",
+    "Mẫu 2 - Chị Linh": "📕 Mẫu 2 - Chị Linh"
+}
 
-<div class="choice-box">
-    <a href="?template=Mẫu 1 - Chị Tiền" style="text-decoration: none;">
-        <div class="choice-option green {0}">Mẫu 1 - Chị Tiền</div>
-    </a>
-    <a href="?template=Mẫu 2 - Chị Linh" style="text-decoration: none;">
-        <div class="choice-option red {1}">Mẫu 2 - Chị Linh</div>
-    </a>
-</div>
-""".format(
-    "selected" if st.session_state.template_option == "Mẫu 1 - Chị Tiền" else "",
-    "selected" if st.session_state.template_option == "Mẫu 2 - Chị Linh" else ""
-), unsafe_allow_html=True)
+# Dò ngược từ label -> value khi chọn
+label_to_value = {v: k for k, v in template_labels.items()}
+default_option = template_labels[st.session_state.get("template_option", "Mẫu 2 - Chị Linh")]
 
-# Dùng st.query_params mới (thay vì experimental_get_query_params)
-query_params = st.query_params
-if "template" in query_params:
-    selected_template = query_params["template"]
-    if selected_template in ["Mẫu 1 - Chị Tiền", "Mẫu 2 - Chị Linh"]:
-        st.session_state.template_option = selected_template
+selected_label = st.selectbox(
+    "📝 Chọn mẫu xuất kết quả:",
+    options=list(template_labels.values()),
+    index=list(template_labels.values()).index(default_option),
+    key="template_label"
+)
 
-# Biến template_option dùng cho xử lý về sau
+# Cập nhật lại session_state cho template_option
+st.session_state.template_option = label_to_value[selected_label]
 template_option = st.session_state.template_option
+
 
 uploaded_files = st.file_uploader("Tải lên file .xlsx hoặc .csv", accept_multiple_files=True)
 
