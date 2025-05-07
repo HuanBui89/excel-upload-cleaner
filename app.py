@@ -13,17 +13,18 @@ if not os.path.exists(log_file):
     pd.DataFrame(columns=["Time", "Filename", "Total Orders"]).to_csv(log_file, index=False)
 
 # Thiết lập mặc định nếu chưa có
+# Thiết lập mặc định nếu chưa có
 if "template_option" not in st.session_state:
     st.session_state.template_option = "Mẫu 2 - Chị Linh"
 
 st.markdown("""
 <style>
-.choice-box {
+.choice-box {{
     display: flex;
     gap: 20px;
     margin-bottom: 20px;
-}
-.choice-option {
+}}
+.choice-option {{
     flex: 1;
     text-align: center;
     padding: 15px;
@@ -33,15 +34,19 @@ st.markdown("""
     cursor: pointer;
     border: 3px solid transparent;
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-.choice-option.red { background-color: #dc3545; color: white; }
-.choice-option.green { background-color: #28a745; color: white; }
-.choice-option.selected { border: 4px solid #000; }
+}}
+.choice-option.red {{ background-color: #dc3545; color: white; }}
+.choice-option.green {{ background-color: #28a745; color: white; }}
+.choice-option.selected {{ border: 4px solid #000; }}
 </style>
 
 <div class="choice-box">
-    <div class="choice-option green {0}" onclick="window.location.href='?template=Mẫu 1 - Chị Tiền'">Mẫu 1 - Chị Tiền</div>
-    <div class="choice-option red {1}" onclick="window.location.href='?template=Mẫu 2 - Chị Linh'">Mẫu 2 - Chị Linh</div>
+    <a href="?template=Mẫu 1 - Chị Tiền" style="text-decoration: none;">
+        <div class="choice-option green {0}">Mẫu 1 - Chị Tiền</div>
+    </a>
+    <a href="?template=Mẫu 2 - Chị Linh" style="text-decoration: none;">
+        <div class="choice-option red {1}">Mẫu 2 - Chị Linh</div>
+    </a>
 </div>
 """.format(
     "selected" if st.session_state.template_option == "Mẫu 1 - Chị Tiền" else "",
@@ -52,10 +57,7 @@ st.markdown("""
 query_params = st.experimental_get_query_params()
 if "template" in query_params:
     selected_template = query_params["template"][0]
-    if selected_template in ["Mẫu 1 - Chị Tiền", "Mẫu 2 - Chị Linh"]:
-        st.session_state.template_option = selected_template
-
-template_option = st.session_state.template_option
+    if selected_template in ["Mẫu 1 - Chị Tiền", "Mẫu 2 - Chị]()_
 
 
 uploaded_files = st.file_uploader("Tải lên file .xlsx hoặc .csv", accept_multiple_files=True)
