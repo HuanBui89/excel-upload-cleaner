@@ -12,12 +12,51 @@ log_file = "history_logs.csv"
 if not os.path.exists(log_file):
     pd.DataFrame(columns=["Time", "Filename", "Total Orders"]).to_csv(log_file, index=False)
 
-template_option = st.radio(
-    "Chọn mẫu xuất kết quả:",
-    options=["Mẫu 1 - Chị Tiền", "Mẫu 2 - Chị Linh"],
-    index=1,
-    help="Mẫu 1 giữ nguyên dữ liệu | Mẫu 2 sẽ thêm tên + đánh số + ghi chú đặc biệt"
-)
+# Thiết lập mặc định nếu chưa có
+if "template_option" not in st.session_state:
+    st.session_state.template_option = "Mẫu 2 - Chị Linh"
+
+st.markdown("""
+<style>
+.choice-box {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+.choice-option {
+    flex: 1;
+    text-align: center;
+    padding: 15px;
+    border-radius: 10px;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    border: 3px solid transparent;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.choice-option.red { background-color: #dc3545; color: white; }
+.choice-option.green { background-color: #28a745; color: white; }
+.choice-option.selected { border: 4px solid #000; }
+</style>
+
+<div class="choice-box">
+    <div class="choice-option green {0}" onclick="window.location.href='?template=Mẫu 1 - Chị Tiền'">Mẫu 1 - Chị Tiền</div>
+    <div class="choice-option red {1}" onclick="window.location.href='?template=Mẫu 2 - Chị Linh'">Mẫu 2 - Chị Linh</div>
+</div>
+""".format(
+    "selected" if st.session_state.template_option == "Mẫu 1 - Chị Tiền" else "",
+    "selected" if st.session_state.template_option == "Mẫu 2 - Chị Linh" else ""
+), unsafe_allow_html=True)
+
+# Lấy giá trị từ URL query nếu có
+query_params = st.experimental_get_query_params()
+if "template" in query_params:
+    selected_template = query_params["template"][0]
+    if selected_template in ["Mẫu 1 - Chị Tiền", "Mẫu 2 - Chị Linh"]:
+        st.session_state.template_option = selected_template
+
+template_option = st.session_state.template_option
+
 
 uploaded_files = st.file_uploader("Tải lên file .xlsx hoặc .csv", accept_multiple_files=True)
 
