@@ -159,29 +159,37 @@ if uploaded_files:
         st.error(f"⚠️ File trùng nội dung bị bỏ qua: {', '.join(duplicates)}")
 
     if all_data:
-        final = pd.concat(all_data, ignore_index=True)
-        total_orders = len(final)
+    final = pd.concat(all_data, ignore_index=True)
+    total_orders = len(final)
 
-        if template_option == "Mẫu 2 - Chị Linh":
-            final["Tên người nhận"] = (final.index + 1).astype(str) + "_" + final["Tên người nhận"].astype(str)
+    if template_option == "Mẫu 2 - Chị Linh":
+        final["Tên người nhận"] = (final.index + 1).astype(str) + "_" + final["Tên người nhận"].astype(str)
 
-        st.success(f"✅ Xử lý thành công! Tổng số đơn: {total_orders}")
-        st.dataframe(final)
+    st.success(f"✅ Xử lý thành công! Tổng số đơn: {total_orders}")
+    st.dataframe(final)
 
-        towrite = io.BytesIO()
-        final.to_excel(towrite, index=False)
-        st.download_button("📥 Tải file GHN", data=towrite, file_name="GHN_output.xlsx")
-# Tách file mỗi 300 dòng nếu là Mẫu 2 - Chị Linh
-if len(final) > 300 and template_option == "Mẫu 2 - Chị Linh":
-    st.subheader("📂 Tách file mỗi 300 đơn")
-    today = datetime.now().strftime("%d.%m")
+    towrite = io.BytesIO()
+    final.to_excel(towrite, index=False)
+    st.download_button("📥 Tải file GHN", data=towrite.getvalue(), file_name="GHN_output.xlsx")
 
-    for i in range(0, len(final), 300):
-        chunk = final.iloc[i:i+300]
-        fname = f"GHN_{today}_SHOP TUONG VY_{i+1}-{i+len(chunk)}.xlsx"
-        buf_chunk = io.BytesIO()
-        chunk.to_excel(buf_chunk, index=False)
-        st.download_button(f"📥 Tải {fname}", buf_chunk.getvalue(), file_name=fname, key=f"chunk_{i}")
+    # Lưu log
+    log_df = pd.read_csv(log_file)
+    new_log = pd.DataFrame([[datetime.now(), ', '.join([f.name for f in uploaded_files]), total_orders]],
+                           columns=["Time", "Filename", "Total Orders"])
+    log_df = pd.concat([log_df, new_log])
+    log_df.to_csv(log_file, index=False)
+
+    # 👉 Tách file mỗi 300 đơn nếu là mẫu 2
+    if len(final) > 300 and template_option == "Mẫu 2 - Chị Linh":
+        st.subheader("📂 Tách file mỗi 300 đơn")
+        today = datetime.now().strftime("%d.%m")
+
+        for i in range(0, len(final), 300):
+            chunk = final.iloc[i:i+300]
+            fname = f"GHN_{today}_SHOP TUONG VY_{i+1}-{i+len(chunk)}.xlsx"
+            buf_chunk = io.BytesIO()
+            chunk.to_excel(buf_chunk, index=False)
+            st.download_button(f"📥 Tải {fname}", buf_chunk.getvalue(), file_name=fname, key=f"chunk_{i}")
         
         # Lưu vào log lịch sử
         log_df = pd.read_csv(log_file)
