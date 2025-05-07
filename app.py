@@ -6,7 +6,7 @@ import os
 from datetime import datetime
 
 st.set_page_config(page_title="GHN Upload Tool", layout="wide")
-st.title("📦 GHN Excel Upload - Auto + Manual Column Mapping (Multi-Sheet)")
+st.title("📦 Ứng Dụng Tạo Đơn Theo Mẫu GHN")
 
 log_file = "history_logs.csv"
 if not os.path.exists(log_file):
@@ -93,7 +93,7 @@ if uploaded_files:
                     "Địa chỉ": df[final_mapping["địa chỉ"]],
                     "Gói cước": 2,
                     "Tiền thu hộ": df[final_mapping["số tiền thu hộ"]],
-                    "Yêu cầu đơn hàng": 2,
+                    "Yêu cầu đơn hàng": 3,
                     "Khối lượng": 500,
                     "Dài": 10, "Rộng": 10, "Cao": 10,
                     "Khai giá": "x",
