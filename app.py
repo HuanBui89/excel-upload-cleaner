@@ -13,7 +13,6 @@ if not os.path.exists(log_file):
     pd.DataFrame(columns=["Time", "Filename", "Total Orders"]).to_csv(log_file, index=False)
 
 # Thiết lập mặc định nếu chưa có
-# Thiết lập mặc định nếu chưa có
 if "template_option" not in st.session_state:
     st.session_state.template_option = "Mẫu 2 - Chị Linh"
 
@@ -53,12 +52,15 @@ st.markdown("""
     "selected" if st.session_state.template_option == "Mẫu 2 - Chị Linh" else ""
 ), unsafe_allow_html=True)
 
-# Lấy giá trị từ URL query nếu có
-query_params = st.experimental_get_query_params()
+# Dùng st.query_params mới (thay vì experimental_get_query_params)
+query_params = st.query_params
 if "template" in query_params:
-    selected_template = query_params["template"][0]
+    selected_template = query_params["template"]
     if selected_template in ["Mẫu 1 - Chị Tiền", "Mẫu 2 - Chị Linh"]:
         st.session_state.template_option = selected_template
+
+# Biến template_option dùng cho xử lý về sau
+template_option = st.session_state.template_option
 
 uploaded_files = st.file_uploader("Tải lên file .xlsx hoặc .csv", accept_multiple_files=True)
 
