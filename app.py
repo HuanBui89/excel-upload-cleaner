@@ -133,7 +133,7 @@ if uploaded_files:
 
                 df["Tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str)
                 df["Ghi chú thêm"] = df[final_mapping["tên hàng"]].astype(str) + " Size " + df[final_mapping["size"]].astype(str) + \
-                    " - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN" if template_option == "Mẫu 2 - Chị Linh" else ""
+                    " - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
 
                 all_data.append(pd.DataFrame({
                     "Tên người nhận": df[final_mapping["họ tên"]],
