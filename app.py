@@ -3,6 +3,7 @@ import pandas as pd
 import io
 import hashlib
 import os
+import tempfile
 from datetime import datetime
 from unicodedata import normalize
 import re
@@ -59,49 +60,6 @@ selected_label = st.selectbox(
 st.session_state.template_option = label_to_value[selected_label]
 template_option = st.session_state.template_option
 
-components.html("""
-<script>
-const fileInput = window.parent.document.querySelector('input[type="file"]');
-if (fileInput) {
-  fileInput.addEventListener('change', (e) => {
-    let file = e.target.files[0];
-    if (file) {
-      const originalName = file.name;
-      const safeName = originalName.normalize('NFD')
-                                    .replace(/[̀-ͯ]/g, '')
-                                    .replace(/[^A-Za-z0-9_. ]/g, '_')
-                                    .replace(/\s+/g, '_');
-      if (originalName !== safeName) {
-        const renamed = new File([file], safeName, {
-          type: file.type,
-          lastModified: file.lastModified
-        });
-        const dt = new DataTransfer();
-        dt.items.add(renamed);
-        e.target.files = dt.files;
-        console.log("Renamed:", originalName, "→", safeName);
-      }
-    }
-  });
-}
-</script>
-""", height=0)
-
-def safe_filename(name):
-    name = normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
-    return re.sub(r"[^a-zA-Z0-9_.-]", "_", name)
-
-uploaded_files_raw = st.file_uploader("Tải lên file .xlsx hoặc .csv", accept_multiple_files=True)
-uploaded_files = []
-uploaded_file_names = {}
-
-if uploaded_files_raw:
-    for f in uploaded_files_raw:
-        original_name = f.name
-        f.name = safe_filename(f.name)
-        uploaded_file_names[f.name] = original_name
-        uploaded_files.append(f)
-
 def auto_map_columns(columns):
     mapping = {}
     keywords = {
@@ -122,32 +80,37 @@ def auto_map_columns(columns):
                 break
     return mapping
 
+uploaded_files = st.file_uploader("Tải lên file .xlsx hoặc .csv", accept_multiple_files=True)
+
 if uploaded_files:
     all_data = []
     duplicates = set()
     content_hashes = set()
 
     for file in uploaded_files:
-        original_name = uploaded_file_names.get(file.name, file.name)
-        file_content = file.getvalue()
-        file_hash = hashlib.md5(file_content).hexdigest()
+        file_bytes = file.read()
+        file_hash = hashlib.md5(file_bytes).hexdigest()
 
         if file_hash in content_hashes:
-            duplicates.add(original_name)
+            duplicates.add(file.name)
             continue
         else:
             content_hashes.add(file_hash)
 
         ext = file.name.split(".")[-1].lower()
         try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}") as tmp:
+                tmp.write(file_bytes)
+                tmp_path = tmp.name
+
             if ext == "xlsx":
-                xls = pd.ExcelFile(file)
+                xls = pd.ExcelFile(tmp_path)
                 sheets = xls.sheet_names
             else:
                 sheets = [None]
 
             for sheet in sheets:
-                df_temp = pd.read_excel(file, sheet_name=sheet, header=None) if ext == "xlsx" else pd.read_csv(file, header=None)
+                df_temp = pd.read_excel(tmp_path, sheet_name=sheet, header=None) if ext == "xlsx" else pd.read_csv(tmp_path, header=None)
                 first_row = df_temp.iloc[0].astype(str)
                 numeric_count = sum([cell.strip().replace('.', '', 1).isdigit() for cell in first_row])
 
@@ -189,7 +152,7 @@ if uploaded_files:
                 }))
 
         except Exception as e:
-            st.error(f"❌ Lỗi đọc file {original_name}: {e}")
+            st.error(f"❌ Lỗi đọc file {file.name}: {e}")
 
     if duplicates:
         st.error(f"⚠️ File trùng nội dung bị bỏ qua: {', '.join(duplicates)}")
@@ -211,7 +174,7 @@ if uploaded_files:
         st.download_button("📥 Tải file GHN", data=towrite.getvalue(), file_name="GHN_output.xlsx")
 
         log_df = pd.read_csv(log_file)
-        new_log = pd.DataFrame([[datetime.now(), ', '.join([uploaded_file_names.get(f.name, f.name) for f in uploaded_files]), total_orders]],
+        new_log = pd.DataFrame([[datetime.now(), ', '.join([f.name for f in uploaded_files]), total_orders]],
                                columns=["Time", "Filename", "Total Orders"])
         log_df = pd.concat([log_df, new_log])
         log_df["Time"] = pd.to_datetime(log_df["Time"])
