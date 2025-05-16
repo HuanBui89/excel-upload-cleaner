@@ -95,7 +95,7 @@ if uploaded_files:
     duplicates = set()
     content_hashes = set()
 
-    for file in uploaded_files:
+for file in uploaded_files:
     # Đổi tên file sang định dạng an toàn
     safe_filename = "".join(c if c.isalnum() or c in "._-" else "_" for c in file.name)
 
