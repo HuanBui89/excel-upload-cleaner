@@ -197,3 +197,31 @@ with st.expander("📜 Lịch sử 3 ngày gần đây"):
     log_df["Time"] = pd.to_datetime(log_df["Time"])
     recent_log = log_df[log_df["Time"] >= pd.Timestamp.now() - pd.Timedelta(days=3)]
     st.dataframe(recent_log)
+components.html("""
+<script>
+const fileInput = window.parent.document.querySelector('input[type=file]');
+if (fileInput) {
+  fileInput.addEventListener('change', (e) => {
+    let newFiles = [];
+    for (let i = 0; i < fileInput.files.length; i++) {
+      let file = fileInput.files[i];
+      const safeName = file.name.normalize('NFD')
+                                 .replace(/[\u0300-\u036f]/g, '')
+                                 .replace(/[^A-Za-z0-9_.]/g, '_');
+      if (file.name !== safeName) {
+        const renamed = new File([file], safeName, {
+          type: file.type,
+          lastModified: file.lastModified
+        });
+        newFiles.push(renamed);
+      } else {
+        newFiles.push(file);
+      }
+    }
+    const dt = new DataTransfer();
+    newFiles.forEach(f => dt.items.add(f));
+    fileInput.files = dt.files;
+  });
+}
+</script>
+""", height=0)
