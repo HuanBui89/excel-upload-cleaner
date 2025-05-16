@@ -8,7 +8,7 @@ from unicodedata import normalize
 import re
 
 st.set_page_config(page_title="GHN Upload Tool", layout="wide")
-st.title("📦 APP TẠO ĐƠN ĐƠN THEO Mẫu GHN")
+st.title("📦 APP TẠO ĐƠN ĐƠN THEO MẪU GHN")
 
 log_file = "history_logs.csv"
 if not os.path.exists(log_file):
@@ -61,21 +61,21 @@ selected_label = st.selectbox(
 st.session_state.template_option = label_to_value[selected_label]
 template_option = st.session_state.template_option
 
-# Hàm làm sạch tên file
+# Hàm đổi tên file an toàn sau upload
 
-def sanitize_filename(filename):
-    filename = normalize("NFKD", filename).encode("ascii", "ignore").decode("ascii")
-    filename = re.sub(r"[^a-zA-Z0-9_.-]", "_", filename)
-    return filename
+def safe_filename(name):
+    name = normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
+    return re.sub(r"[^a-zA-Z0-9_.-]", "_", name)
 
 uploaded_files_raw = st.file_uploader("Tải lên file .xlsx hoặc .csv", accept_multiple_files=True)
 uploaded_files = []
 uploaded_file_names = {}
+
 if uploaded_files_raw:
     for f in uploaded_files_raw:
-        safe_name = sanitize_filename(f.name)
-        uploaded_file_names[safe_name] = f.name
-        f.name = safe_name
+        original_name = f.name
+        f.name = safe_filename(f.name)
+        uploaded_file_names[f.name] = original_name
         uploaded_files.append(f)
 
 def auto_map_columns(columns):
@@ -142,9 +142,9 @@ if uploaded_files:
 
                 df["Tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str)
                 df["Ghi chú thêm"] = (
-                df[final_mapping["tên hàng"]].astype(str) + " Size " +
-                df[final_mapping["size"]].astype(str) + 
-                " - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
+                    df[final_mapping["tên hàng"]].astype(str) + " Size " +
+                    df[final_mapping["size"]].astype(str) +
+                    " - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
                 )
 
                 all_data.append(pd.DataFrame({
@@ -184,7 +184,7 @@ if uploaded_files:
 
         towrite = io.BytesIO()
         final.to_excel(towrite, index=False)
-        st.download_button("📅 Tải file GHN", data=towrite.getvalue(), file_name="GHN_output.xlsx")
+        st.download_button("📥 Tải file GHN", data=towrite.getvalue(), file_name="GHN_output.xlsx")
 
         log_df = pd.read_csv(log_file)
         new_log = pd.DataFrame([[datetime.now(), ', '.join([uploaded_file_names.get(f.name, f.name) for f in uploaded_files]), total_orders]],
@@ -203,7 +203,7 @@ if uploaded_files:
                 fname = f"GHN_{today}_SHOP_TUONG_VY_{i+1}-{i+len(chunk)}.xlsx"
                 buf_chunk = io.BytesIO()
                 chunk.to_excel(buf_chunk, index=False)
-                st.download_button(f"📅 Tải {fname}", buf_chunk.getvalue(), file_name=fname, key=f"chunk_{i}")
+                st.download_button(f"📥 Tải {fname}", buf_chunk.getvalue(), file_name=fname, key=f"chunk_{i}")
 
 with st.expander("📜 Lịch sử 3 ngày gần đây"):
     log_df = pd.read_csv(log_file)
