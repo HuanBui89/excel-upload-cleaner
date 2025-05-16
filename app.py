@@ -68,6 +68,36 @@ def safe_filename(name):
     return re.sub(r"[^a-zA-Z0-9_.-]", "_", name)
 
 uploaded_files_raw = st.file_uploader("Tải lên file .xlsx hoặc .csv", accept_multiple_files=True)
+import streamlit.components.v1 as components
+
+components.html("""
+<script>
+const fileInput = window.parent.document.querySelector('input[type="file"]');
+if (fileInput) {
+  fileInput.addEventListener('change', (e) => {
+    let file = e.target.files[0];
+    if (file) {
+      const originalName = file.name;
+      const safeName = originalName.normalize('NFD')
+                                    .replace(/[\u0300-\u036f]/g, '')
+                                    .replace(/[^A-Za-z0-9_. ]/g, '_')
+                                    .replace(/\\s+/g, '_');
+      if (originalName !== safeName) {
+        const renamed = new File([file], safeName, {
+          type: file.type,
+          lastModified: file.lastModified
+        });
+        const dt = new DataTransfer();
+        dt.items.add(renamed);
+        e.target.files = dt.files;
+        console.log("Renamed:", originalName, "→", safeName);
+      }
+    }
+  });
+}
+</script>
+""", height=0)
+
 uploaded_files = []
 uploaded_file_names = {}
 
