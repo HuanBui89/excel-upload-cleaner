@@ -96,65 +96,69 @@ if uploaded_files:
     content_hashes = set()
 
     for file in uploaded_files:
-        file_content = file.getvalue()
-        file_hash = hashlib.md5(file_content).hexdigest()
+    # Đổi tên file sang định dạng an toàn
+    safe_filename = "".join(c if c.isalnum() or c in "._-" else "_" for c in file.name)
 
-        if file_hash in content_hashes:
-            duplicates.add(file.name)
-            continue
+    file_content = file.getvalue()
+    file_hash = hashlib.md5(file_content).hexdigest()
+
+    if file_hash in content_hashes:
+        duplicates.add(safe_filename)
+        continue
+    else:
+        content_hashes.add(file_hash)
+
+    ext = safe_filename.split(".")[-1].lower()
+
+    try:
+        if ext == "xlsx":
+            xls = pd.ExcelFile(file)
+            sheets = xls.sheet_names
         else:
-            content_hashes.add(file_hash)
+            sheets = [None]
 
-        ext = file.name.split(".")[-1].lower()
-        try:
-            if ext == "xlsx":
-                xls = pd.ExcelFile(file)
-                sheets = xls.sheet_names
+        for sheet in sheets:
+            df_temp = pd.read_excel(file, sheet_name=sheet, header=None) if ext == "xlsx" else pd.read_csv(file, header=None)
+            first_row = df_temp.iloc[0].astype(str)
+            numeric_count = sum([cell.strip().replace('.', '', 1).isdigit() for cell in first_row])
+
+            if numeric_count >= len(first_row) - 2:
+                df = df_temp.copy()
+                df.columns = [f"Cột {i+1}" for i in range(df.shape[1])]
+                auto_mapping = {key: df.columns[i+2] for i, key in enumerate(["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"])}
             else:
-                sheets = [None]
+                df = df_temp[1:].copy()
+                df.columns = first_row
+                auto_mapping = auto_map_columns(df.columns.tolist())
 
-            for sheet in sheets:
-                df_temp = pd.read_excel(file, sheet_name=sheet, header=None) if ext == "xlsx" else pd.read_csv(file, header=None)
-                first_row = df_temp.iloc[0].astype(str)
-                numeric_count = sum([cell.strip().replace('.', '', 1).isdigit() for cell in first_row])
+            required_fields = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"]
+            final_mapping = {field: auto_mapping.get(field) or st.selectbox(
+                f"Chọn cột cho '{field}'", df.columns.tolist(), key=f"{field}_{sheet}_{safe_filename}") for field in required_fields}
 
-                if numeric_count >= len(first_row) - 2:
-                    df = df_temp.copy()
-                    df.columns = [f"Cột {i+1}" for i in range(df.shape[1])]
-                    auto_mapping = {key: df.columns[i+2] for i, key in enumerate(["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"])}
-                else:
-                    df = df_temp[1:].copy()
-                    df.columns = first_row
-                    auto_mapping = auto_map_columns(df.columns.tolist())
-
-                required_fields = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"]
-                final_mapping = {field: auto_mapping.get(field) or st.selectbox(
-                    f"Chọn cột cho '{field}'", df.columns.tolist(), key=f"{field}_{sheet}_{file.name}") for field in required_fields}
-
-                df["Tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str)
-                df["Ghi chú thêm"] = df[final_mapping["tên hàng"]].astype(str) + " Size " + df[final_mapping["size"]].astype(str) + \
+            df["Tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str)
+            df["Ghi chú thêm"] = df[final_mapping["tên hàng"]].astype(str) + " Size " + df[final_mapping["size"]].astype(str) + \
                 " - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
 
+            all_data.append(pd.DataFrame({
+                "Tên người nhận": df[final_mapping["họ tên"]],
+                "Số điện thoại": df[final_mapping["số điện thoại"]],
+                "Địa chỉ": df[final_mapping["địa chỉ"]],
+                "Gói cước": 2,
+                "Tiền thu hộ": df[final_mapping["số tiền thu hộ"]],
+                "Yêu cầu đơn hàng": 3,
+                "Khối lượng": 500,
+                "Dài": 10, "Rộng": 10, "Cao": 10,
+                "Khai giá": "x",
+                "Giá trị hàng": df[final_mapping["số tiền thu hộ"]],
+                "Shop trả ship": "x", "Bưu cục": "", "Mã đơn riêng": "",
+                "Sản phẩm": df["Tên sản phẩm"],
+                "Ghi chú thêm": df["Ghi chú thêm"],
+                "Ca lấy": 1, "Giao thất bại thu": 30000
+            }))
 
-                all_data.append(pd.DataFrame({
-                    "Tên người nhận": df[final_mapping["họ tên"]],
-                    "Số điện thoại": df[final_mapping["số điện thoại"]],
-                    "Địa chỉ": df[final_mapping["địa chỉ"]],
-                    "Gói cước": 2,
-                    "Tiền thu hộ": df[final_mapping["số tiền thu hộ"]],
-                    "Yêu cầu đơn hàng": 3,
-                    "Khối lượng": 500,
-                    "Dài": 10, "Rộng": 10, "Cao": 10,
-                    "Khai giá": "x",
-                    "Giá trị hàng": df[final_mapping["số tiền thu hộ"]],
-                    "Shop trả ship": "x", "Bưu cục": "", "Mã đơn riêng": "",
-                    "Sản phẩm": df["Tên sản phẩm"],
-                    "Ghi chú thêm": df["Ghi chú thêm"],
-                    "Ca lấy": 1, "Giao thất bại thu": 30000
-                }))
+    except Exception as e:
+        st.error(f"❌ Lỗi đọc file {safe_filename}: {e}")
 
-        except Exception as e:
-            st.error(f"❌ Lỗi đọc file {file.name}: {e}")
 
     if duplicates:
         st.error(f"⚠️ File trùng nội dung bị bỏ qua: {', '.join(duplicates)}")
