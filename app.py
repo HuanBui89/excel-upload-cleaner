@@ -141,8 +141,11 @@ if uploaded_files:
                     f"Chọn cột cho '{field}'", df.columns.tolist(), key=f"{field}_{sheet}_{file.name}") for field in required_fields}
 
                 df["Tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str)
-                df["Ghi chú thêm"] = df[final_mapping["tên hàng"]].astype(str) + " Size " + df[final_mapping["size"]].astype(str) +
-                    " - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
+                df["Ghi chú thêm"] = (
+                df[final_mapping["tên hàng"]].astype(str) + " Size " +
+                df[final_mapping["size"]].astype(str) + 
+                " - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
+                )
 
                 all_data.append(pd.DataFrame({
                     "Tên người nhận": df[final_mapping["họ tên"]],
