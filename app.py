@@ -6,6 +6,7 @@ import os
 from datetime import datetime
 from unicodedata import normalize
 import re
+import streamlit.components.v1 as components
 
 st.set_page_config(page_title="GHN Upload Tool", layout="wide")
 st.title("📦 APP TẠO ĐƠN ĐƠN THEO MẪU GHN")
@@ -14,11 +15,9 @@ log_file = "history_logs.csv"
 if not os.path.exists(log_file):
     pd.DataFrame(columns=["Time", "Filename", "Total Orders"]).to_csv(log_file, index=False)
 
-# Thiết lập mặc định nếu chưa có
 if "template_option" not in st.session_state:
     st.session_state.template_option = "Mẫu 2 - Chị Linh"
 
-# Danh sách mẫu và nhãn có icon
 template_labels = {
     "Mẫu 1 - Chị Tiền": "📗 Mẫu 1 - Chị Tiền",
     "Mẫu 2 - Chị Linh": "📕 Mẫu 2 - Chị Linh"
@@ -26,7 +25,6 @@ template_labels = {
 label_to_value = {v: k for k, v in template_labels.items()}
 default_option = template_labels[st.session_state.get("template_option", "Mẫu 2 - Chị Linh")]
 
-# CSS giao diện selectbox
 st.markdown(f"""
 <style>
 div[data-baseweb="select"] {{
@@ -61,15 +59,6 @@ selected_label = st.selectbox(
 st.session_state.template_option = label_to_value[selected_label]
 template_option = st.session_state.template_option
 
-# Hàm đổi tên file an toàn sau upload
-
-def safe_filename(name):
-    name = normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
-    return re.sub(r"[^a-zA-Z0-9_.-]", "_", name)
-
-uploaded_files_raw = st.file_uploader("Tải lên file .xlsx hoặc .csv", accept_multiple_files=True)
-import streamlit.components.v1 as components
-
 components.html("""
 <script>
 const fileInput = window.parent.document.querySelector('input[type="file"]');
@@ -79,9 +68,9 @@ if (fileInput) {
     if (file) {
       const originalName = file.name;
       const safeName = originalName.normalize('NFD')
-                                    .replace(/[\u0300-\u036f]/g, '')
+                                    .replace(/[̀-ͯ]/g, '')
                                     .replace(/[^A-Za-z0-9_. ]/g, '_')
-                                    .replace(/\\s+/g, '_');
+                                    .replace(/\s+/g, '_');
       if (originalName !== safeName) {
         const renamed = new File([file], safeName, {
           type: file.type,
@@ -98,6 +87,11 @@ if (fileInput) {
 </script>
 """, height=0)
 
+def safe_filename(name):
+    name = normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
+    return re.sub(r"[^a-zA-Z0-9_.-]", "_", name)
+
+uploaded_files_raw = st.file_uploader("Tải lên file .xlsx hoặc .csv", accept_multiple_files=True)
 uploaded_files = []
 uploaded_file_names = {}
 
