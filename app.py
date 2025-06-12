@@ -81,19 +81,13 @@ def auto_map_columns(columns):
 
 def is_valid_row(row):
     phone_pattern = re.compile(r"\b0\d{9,10}\b")
-    cod_pattern = re.compile(r"\b\d{5,}\b")  # Số tiền lớn như 200000
-
+    cod_pattern = re.compile(r"\b\d{5,}\b")
     row_str = " ".join([str(cell) for cell in row])
-
-    # Nếu chứa số điện thoại và COD → hợp lệ
     if phone_pattern.search(row_str) and cod_pattern.search(row_str):
         return True
-
-    # Nếu chứa từ khóa loại bỏ
     keywords = ['khách hàng', 'tổng', 'số lượng', 'sản phẩm', 'địa chỉ']
     if any(kw in row_str.lower() for kw in keywords):
         return False
-
     return False
 
 uploaded_files = st.file_uploader("Tải lên file .xlsx hoặc .csv", accept_multiple_files=True)
@@ -139,7 +133,6 @@ if uploaded_files:
                     df.columns = first_row
                     auto_mapping = auto_map_columns(df.columns.tolist())
 
-                # Bỏ các dòng chứa từ "TỔNG" hoặc tiêu đề trùng
                 df = df[df.apply(is_valid_row, axis=1)].reset_index(drop=True)
 
                 required_fields = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"]
@@ -188,7 +181,6 @@ if uploaded_files:
 
         mau_text = "Theo mẫu Chị Linh" if template_option == "Mẫu 2 - Chị Linh" else "Theo mẫu Chị Tiền"
         st.success(f"✅ Xử lý thành công! Tổng số đơn: {total_orders} – {mau_text}")
-
         st.dataframe(final)
 
         towrite = io.BytesIO()
@@ -203,16 +195,30 @@ if uploaded_files:
         log_df = log_df.sort_values(by="Time", ascending=False)
         log_df.to_csv(log_file, index=False)
 
-        if len(final) > 300 and template_option == "Mẫu 2 - Chị Linh":
+        if len(final) > 300:
             st.subheader("📂 Tách file mỗi 300 đơn")
             today = datetime.now().strftime("%d.%m")
-
             for i in range(0, len(final), 300):
                 chunk = final.iloc[i:i+300]
                 fname = f"GHN_{today}_SHOP_TUONG_VY_{i+1}-{i+len(chunk)}.xlsx"
                 buf_chunk = io.BytesIO()
                 chunk.to_excel(buf_chunk, index=False)
                 st.download_button(f"📥 Tải {fname}", buf_chunk.getvalue(), file_name=fname, key=f"chunk_{i}")
+
+            st.subheader("📄 Gộp nhiều sheet (mỗi sheet 300 đơn)")
+            if st.button("📥 Tải file GHN nhiều sheet"):
+                multi_sheet_buf = io.BytesIO()
+                with pd.ExcelWriter(multi_sheet_buf, engine="xlsxwriter") as writer:
+                    for i in range(0, len(final), 300):
+                        chunk = final.iloc[i:i+300]
+                        sheet_name = f"{i+1}-{i+len(chunk)}"
+                        chunk.to_excel(writer, sheet_name=sheet_name, index=False)
+                    writer.save()
+                st.download_button(
+                    label="📥 Tải GHN nhiều sheet",
+                    data=multi_sheet_buf.getvalue(),
+                    file_name=f"GHN_{today}_SHOP_TUONG_VY_NHIEU_SHEET.xlsx"
+                )
 
 with st.expander("📜 Lịch sử 3 ngày gần đây"):
     log_df = pd.read_csv(log_file)
