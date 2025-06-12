@@ -1,16 +1,15 @@
-import streamlit as st
+    import streamlit as st
 import pandas as pd
 import io
 import hashlib
 import os
 import tempfile
 from datetime import datetime
-from unicodedata import normalize
 import re
 import streamlit.components.v1 as components
 
 st.set_page_config(page_title="GHN Upload Tool", layout="wide")
-st.title("📦 APP TẠO ĐƠN ĐƠN THEO MẪU GHN")
+st.title("📦 APP TẠO ĐƠN THEO MẪU GHN")
 
 log_file = "history_logs.csv"
 if not os.path.exists(log_file):
@@ -123,9 +122,16 @@ if uploaded_files:
                     df.columns = first_row
                     auto_mapping = auto_map_columns(df.columns.tolist())
 
+                # Loại bỏ dòng chứa từ "TỔNG" hoặc "Tổng cộng"
+                pattern = re.compile(r"tổng", re.IGNORECASE)
+                df = df[~df.apply(lambda row: row.astype(str).str.contains(pattern).any(), axis=1)]
+
                 required_fields = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"]
-                final_mapping = {field: auto_mapping.get(field) or st.selectbox(
-                    f"Chọn cột cho '{field}'", df.columns.tolist(), key=f"{field}_{sheet}_{file.name}") for field in required_fields}
+                final_mapping = {
+                    field: auto_mapping.get(field) or st.selectbox(
+                        f"Chọn cột cho '{field}'", df.columns.tolist(), key=f"{field}_{sheet}_{file.name}"
+                    ) for field in required_fields
+                }
 
                 df["Tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str)
                 df["Ghi chú thêm"] = (
@@ -197,6 +203,7 @@ with st.expander("📜 Lịch sử 3 ngày gần đây"):
     log_df["Time"] = pd.to_datetime(log_df["Time"])
     recent_log = log_df[log_df["Time"] >= pd.Timestamp.now() - pd.Timedelta(days=3)]
     st.dataframe(recent_log)
+
 components.html("""
 <script>
 const fileInput = window.parent.document.querySelector('input[type=file]');
