@@ -79,6 +79,23 @@ def auto_map_columns(columns):
                 break
     return mapping
 
+def is_valid_row(row):
+    phone_pattern = re.compile(r"\b0\d{9,10}\b")
+    cod_pattern = re.compile(r"\b\d{5,}\b")  # Số tiền lớn như 200000
+
+    row_str = " ".join([str(cell) for cell in row])
+
+    # Nếu chứa số điện thoại và COD → hợp lệ
+    if phone_pattern.search(row_str) and cod_pattern.search(row_str):
+        return True
+
+    # Nếu chứa từ khóa loại bỏ
+    keywords = ['khách hàng', 'tổng', 'số lượng', 'sản phẩm', 'địa chỉ']
+    if any(kw in row_str.lower() for kw in keywords):
+        return False
+
+    return False
+
 uploaded_files = st.file_uploader("Tải lên file .xlsx hoặc .csv", accept_multiple_files=True)
 
 if uploaded_files:
@@ -122,9 +139,8 @@ if uploaded_files:
                     df.columns = first_row
                     auto_mapping = auto_map_columns(df.columns.tolist())
 
-                # Loại bỏ dòng chứa từ "TỔNG" hoặc "Tổng cộng"
-                pattern = re.compile(r"tổng", re.IGNORECASE)
-                df = df[~df.apply(lambda row: row.astype(str).str.contains(pattern).any(), axis=1)]
+                # Bỏ các dòng chứa từ "TỔNG" hoặc tiêu đề trùng
+                df = df[df.apply(is_valid_row, axis=1)].reset_index(drop=True)
 
                 required_fields = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"]
                 final_mapping = {
@@ -232,5 +248,3 @@ if (fileInput) {
 }
 </script>
 """, height=0)
-
-
