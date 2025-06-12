@@ -1,73 +1,91 @@
 import streamlit as st
 import pandas as pd
 import os
-import re
 
-def extract_size(note):
-    if pd.isna(note):
-        return ""
-    match = re.search(r"(\d{2,3})\s?kg", note.lower())
-    return f"{match.group(1)}kg" if match else ""
+st.set_page_config(page_title="APP TẠO ĐƠN THEO MẪU GHN", layout="centered")
 
-def generate_product_name_mapping(df):
-    name_map = {}
-    counters = {}
-    for idx, row in df.iterrows():
-        original = row['TÊN SẢN PHẨM']
-        original_stripped = original.strip()
-        if original_stripped not in counters:
-            counters[original_stripped] = 1
-        else:
-            counters[original_stripped] += 1
-        stt = counters[original_stripped]
+st.title("📦 APP TẠO ĐƠN THEO MẪU GHN")
+st.markdown("📄 **Chọn mẫu xuất kết quả:**")
 
-        # Bỏ 3 ký tự đầu
-        new_base_name = original_stripped[3:].strip()
-        new_name = f"{new_base_name} D.12.6.{stt}"
+# Dropdown chọn mẫu
+template_option = st.selectbox(
+    "📑 Chọn mẫu xuất kết quả:",
+    ["📗 Mẫu 1 - Chị Tiền", "📕 Mẫu 2 - Chị Linh", "📘 Mẫu 3 - Chị Thúy"]
+)
 
-        size = extract_size(str(row.get('GHI CHÚ', '')))
-        full_note = f"{new_name} [{original_stripped} {size}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
-
-        name_map[idx] = {
-            "new_name": new_name,
-            "full_note": full_note
-        }
-    return name_map
-
+# Hàm xử lý cho mẫu chị Thúy
 def apply_mau_chi_thuy(df):
-    mapping = generate_product_name_mapping(df)
-    for idx, update in mapping.items():
-        df.at[idx, 'TÊN SẢN PHẨM'] = update['new_name']
-        df.at[idx, 'GHI CHÚ'] = update['full_note']
+    df = df.copy()
+    stt_counter = {}
+    new_san_pham = []
+    new_ghi_chu = []
+
+    for idx, row in df.iterrows():
+        ten_sp_goc = str(row.get("Sản phẩm", ""))
+        ghi_chu_goc = str(row.get("Ghi chú", ""))
+        
+        # Tìm size từ ghi chú gốc (ví dụ: "49kg")
+        size = ""
+        for token in ghi_chu_goc.split():
+            if "kg" in token.lower():
+                size = token
+                break
+
+        # Bỏ "4B" nếu có
+        sp_clean = ten_sp_goc.strip()
+        if sp_clean.upper().startswith("4B "):
+            sp_core = sp_clean[3:].strip()
+        else:
+            sp_core = sp_clean
+
+        # Đếm thứ tự theo tên gốc (sau khi bỏ "4B")
+        stt_counter.setdefault(sp_core, 0)
+        stt_counter[sp_core] += 1
+        stt = stt_counter[sp_core]
+
+        # Gán lại tên sản phẩm
+        new_name = f"{sp_core} D.12.6.{stt}"
+        new_san_pham.append(new_name)
+
+        # Gán lại ghi chú
+        new_note = f"{new_name} [{ten_sp_goc} {size}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
+        new_ghi_chu.append(new_note)
+
+    df["Sản phẩm"] = new_san_pham
+    df["Ghi chú"] = new_ghi_chu
     return df
 
-st.title("GHN Excel Processor")
 
-template_option = st.selectbox("Chọn mẫu xử lý", ["Chị Tiền", "Chị Linh", "Chị Thúy"])
+uploaded_file = st.file_uploader("📤 Upload file Excel", type=["xlsx", "xls"])
 
-uploaded_files = st.file_uploader("Tải lên file Excel", type=["xlsx"], accept_multiple_files=True)
+if uploaded_file is not None:
+    df = pd.read_excel(uploaded_file)
+    
+    if "Chị Tiền" in template_option:
+        st.success("✅ Đang xử lý theo Mẫu 1 - Chị Tiền")
+        # Logic gốc giữ nguyên
+        st.dataframe(df)
 
-if uploaded_files:
-    for file in uploaded_files:
-        st.write(f"Đang xử lý: {file.name}")
-        df = pd.read_excel(file)
+    elif "Chị Linh" in template_option:
+        st.success("✅ Đang xử lý theo Mẫu 2 - Chị Linh")
+        # Logic gốc giữ nguyên
+        st.dataframe(df)
 
-        if template_option == "Chị Tiền":
-            st.dataframe(df)
-        elif template_option == "Chị Linh":
-            st.dataframe(df)
-        elif template_option == "Chị Thúy":
-            df = apply_mau_chi_thuy(df)
-            st.dataframe(df)
+    elif "Chị Thúy" in template_option:
+        st.success("✅ Đang xử lý theo Mẫu 3 - Chị Thúy")
+        df = apply_mau_chi_thuy(df)
+        st.dataframe(df)
 
-        # Xuất file
-        output_file = file.name.replace(".xlsx", f" - Xuất theo mẫu {template_option}.xlsx")
-        df.to_excel(output_file, index=False)
-        with open(output_file, "rb") as f:
-            st.download_button(
-                label="Tải về file đã xử lý",
-                data=f,
-                file_name=output_file,
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-        os.remove(output_file)
+    # Nút tải xuống
+    @st.cache_data
+    def convert_df(df):
+        return df.to_excel(index=False, engine='openpyxl')
+
+    if st.button("📥 Tải về file kết quả"):
+        out = convert_df(df)
+        st.download_button(
+            label="📄 Tải file Excel",
+            data=out,
+            file_name="output_mau_giaodich.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
