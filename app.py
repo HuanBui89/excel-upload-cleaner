@@ -1,91 +1,85 @@
 import streamlit as st
 import pandas as pd
-import os
+from io import BytesIO
 
-st.set_page_config(page_title="APP TẠO ĐƠN THEO MẪU GHN", layout="centered")
+st.set_page_config(page_title="APP TẠO ĐƠN GHN", layout="centered")
+st.title("📦 APP TẠO ĐƠN GHN")
+st.markdown("👉 Chọn mẫu xuất kết quả:")
 
-st.title("📦 APP TẠO ĐƠN THEO MẪU GHN")
-st.markdown("📄 **Chọn mẫu xuất kết quả:**")
-
-# Dropdown chọn mẫu
+# Chọn mẫu
 template_option = st.selectbox(
-    "📑 Chọn mẫu xuất kết quả:",
+    "📑 Chọn mẫu:",
     ["📗 Mẫu 1 - Chị Tiền", "📕 Mẫu 2 - Chị Linh", "📘 Mẫu 3 - Chị Thúy"]
 )
 
-# Hàm xử lý cho mẫu chị Thúy
-def apply_mau_chi_thuy(df):
-    df = df.copy()
-    stt_counter = {}
-    new_san_pham = []
-    new_ghi_chu = []
+uploaded_file = st.file_uploader("📤 Tải file Excel", type=["xlsx"])
 
-    for idx, row in df.iterrows():
-        ten_sp_goc = str(row.get("Sản phẩm", ""))
-        ghi_chu_goc = str(row.get("Ghi chú", ""))
-        
-        # Tìm size từ ghi chú gốc (ví dụ: "49kg")
+# Hàm xử lý sản phẩm và ghi chú cho mẫu chị Thúy
+def process_chi_thuy(df):
+    df = df.copy()
+    stt_map = {}
+
+    for i, row in df.iterrows():
+        ten_sp_goc = str(row.get("Sản phẩm", "")).strip()
+        ghi_chu_goc = str(row.get("Ghi chú", "")).strip()
+
+        # Bỏ 3 ký tự đầu
+        sp_core = ten_sp_goc[3:].strip() if len(ten_sp_goc) > 3 else ten_sp_goc
+
+        # STT theo từng tên gốc
+        stt_map.setdefault(sp_core, 0)
+        stt_map[sp_core] += 1
+        stt = stt_map[sp_core]
+
+        # Sản phẩm mới
+        ten_sp_moi = f"{sp_core} D.12.6.{stt}"
+
+        # Tìm size từ ghi chú (ví dụ: 50kg)
         size = ""
-        for token in ghi_chu_goc.split():
-            if "kg" in token.lower():
-                size = token
+        for word in ghi_chu_goc.split():
+            if "kg" in word.lower():
+                size = word
                 break
 
-        # Bỏ "4B" nếu có
-        sp_clean = ten_sp_goc.strip()
-        if sp_clean.upper().startswith("4B "):
-            sp_core = sp_clean[3:].strip()
-        else:
-            sp_core = sp_clean
+        # Ghi chú mới
+        ghi_chu_moi = f"{ten_sp_moi} [{ten_sp_goc} {size}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
 
-        # Đếm thứ tự theo tên gốc (sau khi bỏ "4B")
-        stt_counter.setdefault(sp_core, 0)
-        stt_counter[sp_core] += 1
-        stt = stt_counter[sp_core]
+        df.at[i, "Sản phẩm"] = ten_sp_moi
+        df.at[i, "Ghi chú"] = ghi_chu_moi
 
-        # Gán lại tên sản phẩm
-        new_name = f"{sp_core} D.12.6.{stt}"
-        new_san_pham.append(new_name)
-
-        # Gán lại ghi chú
-        new_note = f"{new_name} [{ten_sp_goc} {size}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
-        new_ghi_chu.append(new_note)
-
-    df["Sản phẩm"] = new_san_pham
-    df["Ghi chú"] = new_ghi_chu
     return df
 
-
-uploaded_file = st.file_uploader("📤 Upload file Excel", type=["xlsx", "xls"])
+# Hàm xuất file Excel
+def to_excel_bytes(df):
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name="Đơn hàng")
+    return output.getvalue()
 
 if uploaded_file is not None:
     df = pd.read_excel(uploaded_file)
-    
+
     if "Chị Tiền" in template_option:
         st.success("✅ Đang xử lý theo Mẫu 1 - Chị Tiền")
-        # Logic gốc giữ nguyên
-        st.dataframe(df)
+        df_result = df.copy()  # hoặc xử lý riêng theo logic chị Tiền nếu có
 
     elif "Chị Linh" in template_option:
         st.success("✅ Đang xử lý theo Mẫu 2 - Chị Linh")
-        # Logic gốc giữ nguyên
-        st.dataframe(df)
+        df_result = df.copy()  # hoặc xử lý riêng theo logic chị Linh nếu có
 
     elif "Chị Thúy" in template_option:
         st.success("✅ Đang xử lý theo Mẫu 3 - Chị Thúy")
-        df = apply_mau_chi_thuy(df)
-        st.dataframe(df)
+        df_result = df.copy()
+        df_result = process_chi_thuy(df_result)
 
-    # Nút tải xuống
-    @st.cache_data
-    def convert_df(df):
-        return df.to_excel(index=False, engine='openpyxl')
+    st.dataframe(df_result)
 
-    if st.button("📥 Tải về file kết quả"):
-        out = convert_df(df)
+    # Nút tải về
+    if st.button("📥 Tải file kết quả"):
+        excel_bytes = to_excel_bytes(df_result)
         st.download_button(
             label="📄 Tải file Excel",
-            data=out,
-            file_name="output_mau_giaodich.xlsx",
+            data=excel_bytes,
+            file_name="output_don_chi_thuy.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
