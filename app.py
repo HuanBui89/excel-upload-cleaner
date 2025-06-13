@@ -60,7 +60,6 @@ selected_label = st.selectbox(
 
 st.session_state.template_option = label_to_value[selected_label]
 template_option = st.session_state.template_option
-
 def auto_map_columns(columns):
     mapping = {}
     keywords = {
@@ -167,7 +166,6 @@ if uploaded_files:
                     "Ghi chú thêm": df["Ghi chú thêm"],
                     "Ca lấy": 1, "Giao thất bại thu": 30000
                 }))
-
         except Exception as e:
             st.error(f"❌ Lỗi đọc file {file.name}: {e}")
 
@@ -196,21 +194,16 @@ if uploaded_files:
             for idx in range(len(final)):
                 ten_sp_goc = str(ten_sp_goc_list[idx]).strip()
                 size_goc = str(size_goc_list[idx]).strip()
-
                 ten_sp_rut_gon = re.sub(r'^\s*\d+[A-Z]*\s+', '', ten_sp_goc)
                 product_counter[ten_sp_rut_gon] += 1
                 stt = product_counter[ten_sp_rut_gon]
-
                 ma_don_rieng = f"{ten_sp_rut_gon} D.{day}.{month}.{stt}"
                 ma_don_list.append(ma_don_rieng)
-
                 ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} {size_goc}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
                 ghi_chu_list.append(ghi_chu)
 
             final["Mã đơn riêng"] = ma_don_list
             final["Ghi chú thêm"] = ghi_chu_list
-
-        # Mẫu 1 giữ nguyên
 
         st.success(f"✅ Xử lý thành công! Tổng số đơn: {total_orders} – Theo mẫu {template_option}")
         st.dataframe(final)
@@ -230,9 +223,19 @@ if uploaded_files:
         if len(final) > 300:
             st.subheader("📂 Tách file mỗi 300 đơn")
             today = datetime.now().strftime("%d.%m")
+
+            if template_option == "Mẫu 1 - Chị Tiền":
+                shop_name = "SHOP_CHI_TIEN"
+            elif template_option == "Mẫu 2 - Chị Linh":
+                shop_name = "SHOP_CHI_LINH"
+            elif template_option == "Mẫu 3 - Chị Thúy":
+                shop_name = "SHOP_CHI_THUY"
+            else:
+                shop_name = "SHOP"
+
             for i in range(0, len(final), 300):
                 chunk = final.iloc[i:i+300]
-                fname = f"GHN_{today}_SHOP_TUONG_VY_{i+1}-{i+len(chunk)}.xlsx"
+                fname = f"GHN_{today}_{shop_name}_{i+1}-{i+len(chunk)}.xlsx"
                 buf_chunk = io.BytesIO()
                 chunk.to_excel(buf_chunk, index=False)
                 st.download_button(f"📥 Tải {fname}", buf_chunk.getvalue(), file_name=fname, key=f"chunk_{i}")
@@ -249,7 +252,7 @@ if uploaded_files:
                 st.download_button(
                     label="📥 Tải GHN nhiều sheet",
                     data=multi_sheet_buf.getvalue(),
-                    file_name=f"GHN_{today}_SHOP_TUONG_VY_NHIEU_SHEET.xlsx"
+                    file_name=f"GHN_{today}_{shop_name}_NHIEU_SHEET.xlsx"
                 )
 
 with st.expander("📜 Lịch sử 3 ngày gần đây"):
