@@ -183,13 +183,13 @@ if uploaded_files:
 
         if template_option == "Mẫu 3 - Chị Thúy":
             import re
-                now = datetime.now()
-                day = now.day
-                month = now.month
+               now = datetime.now()
+               day = now.day
+               month = now.month
 
-                product_counter = defaultdict(int)
-                ma_don_list = []
-                ghi_chu_list = []
+               product_counter = defaultdict(int)
+               ma_don_list = []
+               ghi_chu_list = []
 
             # Lấy danh sách size và tên sản phẩm rút gọn
             size_goc_list = df_all["Size gốc"].tolist()
