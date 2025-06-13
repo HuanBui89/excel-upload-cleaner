@@ -191,7 +191,6 @@ if uploaded_files:
             ma_don_list = []
             ghi_chu_list = []
 
-            # Lấy danh sách size và tên sản phẩm rút gọn
             size_goc_list = df_all["Size gốc"].tolist()
             rut_gon_sp_list = [re.sub(r'^\\s*\\d+[A-Z]*\\s+', '', name).strip() for name in df_all["Tên sản phẩm"]]
 
@@ -200,15 +199,13 @@ if uploaded_files:
                 ten_sp_rut_gon = rut_gon_sp_list[idx]
                 size_goc = str(size_goc_list[idx])
 
-                # Đếm số thứ tự theo tên SP rút gọn
                 product_counter[ten_sp_rut_gon] += 1
                 stt = product_counter[ten_sp_rut_gon]
 
-                # Mã đơn riêng
-                ma_don_rieng = f"{ten_sp_rut_gon}.{day}.{month}.{stt}"
+                # 🔁 Cập nhật theo yêu cầu mới
+                ma_don_rieng = f"{ten_sp_rut_gon} D.{day}.{month}.{stt}"
                 ma_don_list.append(ma_don_rieng)
 
-                # Ghi chú thêm
                 ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} {size_goc}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
                 ghi_chu_list.append(ghi_chu)
 
