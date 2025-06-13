@@ -191,33 +191,29 @@ if uploaded_files:
         ma_don_list = []
         ghi_chu_list = []
 
-        # Gốc: dùng trong Ghi chú
-        ten_sp_raw_list = df_all["Tên sản phẩm"].tolist()
-        # Size gốc
-        size_goc_list = df_all["Size gốc"].tolist()
-
         for idx, row in final.iterrows():
-            ten_sp_goc = str(ten_sp_raw_list[idx]).strip()
-            size_goc = str(size_goc_list[idx]).strip()
+            ten_sp_goc = str(row["Sản phẩm"]).strip()           # ✅ Lấy từ final
+            size_goc = str(df_all.loc[idx, "Size gốc"]).strip()  # Lấy từ gốc nếu chưa merge vào final
 
-            # ✅ Rút gọn tiền tố (4B, 2, v.v.) cho mã đơn riêng
+            # Rút gọn tên
             ten_sp_rut_gon = re.sub(r'^\\s*\\d+[A-Z]*\\s+', '', ten_sp_goc)
 
-            # ✅ Tính số thứ tự theo tên rút gọn
+            # Đếm STT theo tên SP rút gọn
             product_counter[ten_sp_rut_gon] += 1
             stt = product_counter[ten_sp_rut_gon]
 
-            # ✅ Mã đơn riêng (dùng tên rút gọn)
             ma_don_rieng = f"{ten_sp_rut_gon} D.{day}.{month}.{stt}"
             ma_don_list.append(ma_don_rieng)
 
-            # ✅ Ghi chú (dùng tên sản phẩm gốc)
             ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} {size_goc}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
             ghi_chu_list.append(ghi_chu)
 
+        # ✅ Gán khi chắc chắn độ dài khớp
+        if len(ma_don_list) == len(final):
             final["Mã đơn riêng"] = ma_don_list
             final["Ghi chú thêm"] = ghi_chu_list
-
+        else:
+            st.error("❌ Không khớp số dòng giữa dữ liệu và danh sách mã đơn riêng.")
 
 
         if template_option == "Mẫu 2 - Chị Linh":
