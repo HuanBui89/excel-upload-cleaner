@@ -181,7 +181,7 @@ if uploaded_files:
             "Ca lấy": 1, "Giao thất bại thu": 30000
         })
 
-       if template_option == "Mẫu 3 - Chị Thúy":
+     if template_option == "Mẫu 3 - Chị Thúy":
             import re
             now = datetime.now()
             day = now.day
@@ -191,26 +191,33 @@ if uploaded_files:
             ma_don_list = []
             ghi_chu_list = []
 
-            size_goc_list = df_all["Size gốc"].tolist()
+            # Gốc: dùng trong Ghi chú
             ten_sp_raw_list = df_all["Tên sản phẩm"].tolist()
-            ten_sp_rut_gon_list = [re.sub(r'^\\s*\\d+[A-Z]*\\s+', '', name).strip() for name in ten_sp_raw_list]
+            # Size gốc
+            size_goc_list = df_all["Size gốc"].tolist()
 
             for idx, row in final.iterrows():
-                ten_sp_goc = ten_sp_raw_list[idx].strip()       # VD: 4B HOA 5 CÁNH
-                ten_sp_rut_gon = ten_sp_rut_gon_list[idx]       # VD: HOA 5 CÁNH
-                size_goc = str(size_goc_list[idx])
+                ten_sp_goc = str(ten_sp_raw_list[idx]).strip()
+                size_goc = str(size_goc_list[idx]).strip()
 
+                # ✅ Rút gọn tiền tố (4B, 2, v.v.) cho mã đơn riêng
+                ten_sp_rut_gon = re.sub(r'^\\s*\\d+[A-Z]*\\s+', '', ten_sp_goc)
+
+                # ✅ Tính số thứ tự theo tên rút gọn
                 product_counter[ten_sp_rut_gon] += 1
                 stt = product_counter[ten_sp_rut_gon]
 
+                # ✅ Mã đơn riêng (dùng tên rút gọn)
                 ma_don_rieng = f"{ten_sp_rut_gon} D.{day}.{month}.{stt}"
                 ma_don_list.append(ma_don_rieng)
 
-                ghi_chu = f"{ma_don_rieng} [{ten_sp_rut_gon} {size_goc}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
+                # ✅ Ghi chú (dùng tên sản phẩm gốc)
+                ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} {size_goc}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
                 ghi_chu_list.append(ghi_chu)
 
             final["Mã đơn riêng"] = ma_don_list
             final["Ghi chú thêm"] = ghi_chu_list
+
 
 
         if template_option == "Mẫu 2 - Chị Linh":
