@@ -189,21 +189,36 @@ if uploaded_files:
             ghi_chu_list = []
 
             ten_sp_goc_list = final["Sản phẩm"].tolist()
-            size_goc_list = final["Ghi chú thêm"].str.extract(r"Size\s+(.*?)\s*-")[0].fillna("")
+            size_list = final["Ghi chú thêm"].str.extract(r"(\d+kg)")[0].fillna("")
+            sheet_names = [f.name.upper() for f in uploaded_files]
+            is_lon_xon = any("LỘN XỘN" in name for name in sheet_names)
 
             for idx in range(len(final)):
                 ten_sp_goc = str(ten_sp_goc_list[idx]).strip()
-                size_goc = str(size_goc_list[idx]).strip()
-                ten_sp_rut_gon = re.sub(r'^\s*\d+[A-Z]*\s+', '', ten_sp_goc)
+                size_text = str(size_list[idx]).strip()
+
+                if is_lon_xon:
+                    ten_sp_rut_gon = "LỘN XỘN"
+                else:
+                    ten_sp_rut_gon = re.sub(r'^\s*\d+[A-Z]*\s+', '', ten_sp_goc)
+
                 product_counter[ten_sp_rut_gon] += 1
                 stt = product_counter[ten_sp_rut_gon]
+
                 ma_don_rieng = f"{ten_sp_rut_gon} D.{day}.{month}.{stt}"
                 ma_don_list.append(ma_don_rieng)
-                ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} {size_goc}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
+
+                if is_lon_xon:
+                    # [Tên sản phẩm gốc + Size]
+                    ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} + {size_text}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
+                else:
+                    ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} {size_text}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
+
                 ghi_chu_list.append(ghi_chu)
 
             final["Mã đơn riêng"] = ma_don_list
             final["Ghi chú thêm"] = ghi_chu_list
+
 
         st.success(f"✅ Xử lý thành công! Tổng số đơn: {total_orders} – Theo mẫu {template_option}")
         st.dataframe(final)
