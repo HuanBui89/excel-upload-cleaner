@@ -181,7 +181,7 @@ if uploaded_files:
             "Ca lấy": 1, "Giao thất bại thu": 30000
         })
 
-     if template_option == "Mẫu 3 - Chị Thúy":
+         if template_option == "Mẫu 3 - Chị Thúy":
             import re
             now = datetime.now()
             day = now.day
