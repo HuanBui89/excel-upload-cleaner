@@ -191,31 +191,32 @@ if uploaded_files:
         ma_don_list = []
         ghi_chu_list = []
 
+        # Lấy dữ liệu gốc từ df_all để đảm bảo chưa bị chỉnh sửa
         ten_sp_goc_list = df_all["Tên sản phẩm"].tolist()
         size_goc_list = df_all["Size gốc"].tolist()
 
-        for idx in range(len(df_all)):
-            ten_sp_goc = str(ten_sp_goc_list[idx]).strip()
-            size_goc = str(size_goc_list[idx]).strip()
+        for idx in range(len(final)):
+            ten_sp_goc = str(ten_sp_goc_list[idx]).strip()        # Ví dụ: "2B HOA REN"
+            size_goc = str(size_goc_list[idx]).strip()            # Ví dụ: "40kg"
 
-            # ✅ Rút gọn tên: bỏ tiền tố như 4B, 2, 2B,...
-            ten_sp_rut_gon = re.sub(r'^\\s*\\d+[A-Z]*\\s+', '', ten_sp_goc)
+            # ✅ Rút gọn tên: loại bỏ tiền tố như 2, 2B, 4B, v.v.
+            ten_sp_rut_gon = re.sub(r'^\s*\d+[A-Z]*\s+', '', ten_sp_goc)
 
-            # ✅ Đếm theo tên đã rút gọn
+            # ✅ Tăng số thứ tự theo tên rút gọn
             product_counter[ten_sp_rut_gon] += 1
             stt = product_counter[ten_sp_rut_gon]
 
-            # ✅ Tạo mã đơn riêng đúng
+            # ✅ Tạo mã đơn riêng từ tên rút gọn (loại bỏ hoàn toàn 2B, 4B...)
             ma_don_rieng = f"{ten_sp_rut_gon} D.{day}.{month}.{stt}"
             ma_don_list.append(ma_don_rieng)
 
-            # ✅ Ghi chú giữ nguyên tên gốc (có 4B, 2B...) để shop đối chiếu
+            # ✅ Ghi chú thêm: vẫn giữ nguyên tên sản phẩm gốc để đối chiếu dễ dàng
             ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} {size_goc}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
             ghi_chu_list.append(ghi_chu)
 
-        # ✅ Gán lại vào final — đảm bảo độ dài đúng
         final["Mã đơn riêng"] = ma_don_list
         final["Ghi chú thêm"] = ghi_chu_list
+
 
 
         if template_option == "Mẫu 2 - Chị Linh":
