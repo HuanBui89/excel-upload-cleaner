@@ -135,6 +135,7 @@ if uploaded_files:
                     auto_mapping = auto_map_columns(df.columns.tolist())
 
                 df = df[df.apply(is_valid_row, axis=1)].reset_index(drop=True)
+                df["__sheet_name__"] = sheet
 
                 required_fields = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"]
                 final_mapping = {
@@ -178,7 +179,6 @@ if uploaded_files:
 
         if template_option == "Mẫu 2 - Chị Linh":
             final["Tên người nhận"] = (final.index + 1).astype(str) + "_" + final["Tên người nhận"].astype(str)
-
         elif template_option == "Mẫu 3 - Chị Thúy":
             now = datetime.now()
             day = now.day
@@ -190,12 +190,14 @@ if uploaded_files:
 
             ten_sp_goc_list = final["Sản phẩm"].tolist()
             size_list = final["Ghi chú thêm"].str.extract(r"(\d+kg)")[0].fillna("")
-            sheet_names = [f.name.upper() for f in uploaded_files]
-            is_lon_xon = any("LỘN XỘN" in name for name in sheet_names)
+            sheet_list = final["__sheet_name__"].fillna("").str.upper()
 
             for idx in range(len(final)):
                 ten_sp_goc = str(ten_sp_goc_list[idx]).strip()
                 size_text = str(size_list[idx]).strip()
+                sheet_name = str(sheet_list[idx])
+
+                is_lon_xon = "LỘN XỘN" in sheet_name
 
                 if is_lon_xon:
                     ten_sp_rut_gon = "LỘN XỘN"
@@ -208,18 +210,13 @@ if uploaded_files:
                 ma_don_rieng = f"{ten_sp_rut_gon} D.{day}.{month}.{stt}"
                 ma_don_list.append(ma_don_rieng)
 
-                if is_lon_xon:
-                    # Đúng định dạng: [SẢN PHẨM SIZE] — không có dấu +
-                    ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} {size_text}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
-                else:
-                    ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} {size_text}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
-
+                # Ghi chú chuẩn hóa đúng định dạng
+                ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} {size_text}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
                 ghi_chu_list.append(ghi_chu)
 
             final["Mã đơn riêng"] = ma_don_list
             final["Ghi chú thêm"] = ghi_chu_list
-
-
+    
 
         st.success(f"✅ Xử lý thành công! Tổng số đơn: {total_orders} – Theo mẫu {template_option}")
         st.dataframe(final)
