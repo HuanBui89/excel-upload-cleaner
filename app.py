@@ -209,8 +209,8 @@ if uploaded_files:
                 ma_don_list.append(ma_don_rieng)
 
                 if is_lon_xon:
-                    # [Tên sản phẩm gốc + Size]
-                    ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} + {size_text}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
+                    # Đúng định dạng: [SẢN PHẨM SIZE] — không có dấu +
+                    ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} {size_text}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
                 else:
                     ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} {size_text}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
 
@@ -218,6 +218,7 @@ if uploaded_files:
 
             final["Mã đơn riêng"] = ma_don_list
             final["Ghi chú thêm"] = ghi_chu_list
+
 
 
         st.success(f"✅ Xử lý thành công! Tổng số đơn: {total_orders} – Theo mẫu {template_option}")
