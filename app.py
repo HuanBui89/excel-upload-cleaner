@@ -6,10 +6,11 @@ import os
 import tempfile
 from datetime import datetime
 import re
+from collections import defaultdict
 import streamlit.components.v1 as components
 
 st.set_page_config(page_title="GHN Upload Tool", layout="wide")
-st.title("📦 APP TẠO ĐƠN THEO MẪU GHN")
+st.title("📦 APP TẠO ĐƠN THEO MẪeU GHN")
 
 log_file = "history_logs.csv"
 if not os.path.exists(log_file):
@@ -144,10 +145,12 @@ if uploaded_files:
                 }
 
                 df["Tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str)
+                df["Size gốc"] = df[final_mapping["size"]].astype(str)  # Lưu size riêng
+
                 df["Ghi chú thêm"] = (
                     df[final_mapping["tên hàng"]].astype(str) + " Size " +
                     df[final_mapping["size"]].astype(str) +
-                    " - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
+                    " - KHÁCH KHÔNG NHẬN THU 30K, GỌI VẾ SHOP KHI ĐƠN SAI THÔNG TIN"
                 )
 
                 all_data.append(pd.DataFrame({
@@ -177,16 +180,11 @@ if uploaded_files:
         final = pd.concat(all_data, ignore_index=True)
         total_orders = len(final)
 
-
         if template_option == "Mẫu 3 - Chị Thúy":
-            from collections import defaultdict
-
-            # Lấy ngày và tháng hiện tại
             now = datetime.now()
             day = now.day
-            month = now.month  # không thêm số 0 phía trước
+            month = now.month
 
-            # Đếm số thứ tự theo từng tên sản phẩm
             product_counter = defaultdict(int)
             ma_don_list = []
             ghi_chu_list = []
@@ -194,97 +192,30 @@ if uploaded_files:
             for idx, row in final.iterrows():
                 ten_sp_goc = str(row["Sản phẩm"]).strip()
                 product_counter[ten_sp_goc] += 1
-
-                # Bỏ 3 ký tự đầu tiên
-                ten_sp_rut_gon = ten_sp_goc[3:].strip() if len(ten_sp_goc) > 3 else ten_sp_goc
-
-                # Mã đơn riêng
                 stt = product_counter[ten_sp_goc]
+
+                ten_sp_rut_gon = ten_sp_goc[3:].strip() if len(ten_sp_goc) > 3 else ten_sp_goc
                 ma_don_rieng = f"{ten_sp_rut_gon}.{day}.{month}.{stt}"
                 ma_don_list.append(ma_don_rieng)
 
-                # Ghi chú thêm
-                size = str(row["Ghi chú thêm"]).strip()  # đang lưu thông tin 'size' tại đây
-                ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} {size}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
+                size_goc = str(row["Size gốc"]).strip()
+                ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} {size_goc}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VẾ SHOP KHI ĐƠN SAI THÔNG TIN"
                 ghi_chu_list.append(ghi_chu)
 
             final["Mã đơn riêng"] = ma_don_list
             final["Ghi chú thêm"] = ghi_chu_list
+
         if template_option == "Mẫu 2 - Chị Linh":
             final["Tên người nhận"] = (final.index + 1).astype(str) + "_" + final["Tên người nhận"].astype(str)
 
-        mau_text = "Theo mẫu Chị Linh" if template_option == "Mẫu 2 - Chị Linh" else "Theo mẫu Chị Tiền"
+        if template_option == "Mẫu 1 - Chị Tiền":
+            mau_text = "Theo mẫu Chị Tiền"
+        elif template_option == "Mẫu 2 - Chị Linh":
+            mau_text = "Theo mẫu Chị Linh"
+        elif template_option == "Mẫu 3 - Chị Thúy":
+            mau_text = "Theo mẫu Chị Thúy"
+        else:
+            mau_text = "Theo mẫu không xác định"
+
         st.success(f"✅ Xử lý thành công! Tổng số đơn: {total_orders} – {mau_text}")
         st.dataframe(final)
-
-        towrite = io.BytesIO()
-        final.to_excel(towrite, index=False)
-        st.download_button("📥 Tải file GHN", data=towrite.getvalue(), file_name="GHN_output.xlsx")
-
-        log_df = pd.read_csv(log_file)
-        new_log = pd.DataFrame([[datetime.now(), ', '.join([f.name for f in uploaded_files]), total_orders]],
-                               columns=["Time", "Filename", "Total Orders"])
-        log_df = pd.concat([log_df, new_log])
-        log_df["Time"] = pd.to_datetime(log_df["Time"])
-        log_df = log_df.sort_values(by="Time", ascending=False)
-        log_df.to_csv(log_file, index=False)
-
-        if len(final) > 300:
-            st.subheader("📂 Tách file mỗi 300 đơn")
-            today = datetime.now().strftime("%d.%m")
-            for i in range(0, len(final), 300):
-                chunk = final.iloc[i:i+300]
-                fname = f"GHN_{today}_SHOP_TUONG_VY_{i+1}-{i+len(chunk)}.xlsx"
-                buf_chunk = io.BytesIO()
-                chunk.to_excel(buf_chunk, index=False)
-                st.download_button(f"📥 Tải {fname}", buf_chunk.getvalue(), file_name=fname, key=f"chunk_{i}")
-
-            st.subheader("📄 Gộp nhiều sheet (mỗi sheet 300 đơn)")
-            if st.button("📥 Tải file GHN nhiều sheet"):
-                multi_sheet_buf = io.BytesIO()
-                with pd.ExcelWriter(multi_sheet_buf, engine="xlsxwriter") as writer:
-                    for i in range(0, len(final), 300):
-                        chunk = final.iloc[i:i+300]
-                        sheet_name = f"{i+1}-{i+len(chunk)}"
-                        chunk.to_excel(writer, sheet_name=sheet_name, index=False)
-                    writer.save()
-                st.download_button(
-                    label="📥 Tải GHN nhiều sheet",
-                    data=multi_sheet_buf.getvalue(),
-                    file_name=f"GHN_{today}_SHOP_TUONG_VY_NHIEU_SHEET.xlsx"
-                )
-
-with st.expander("📜 Lịch sử 3 ngày gần đây"):
-    log_df = pd.read_csv(log_file)
-    log_df["Time"] = pd.to_datetime(log_df["Time"])
-    recent_log = log_df[log_df["Time"] >= pd.Timestamp.now() - pd.Timedelta(days=3)]
-    st.dataframe(recent_log)
-
-components.html("""
-<script>
-const fileInput = window.parent.document.querySelector('input[type=file]');
-if (fileInput) {
-  fileInput.addEventListener('change', (e) => {
-    let newFiles = [];
-    for (let i = 0; i < fileInput.files.length; i++) {
-      let file = fileInput.files[i];
-      const safeName = file.name.normalize('NFD')
-                                 .replace(/[\u0300-\u036f]/g, '')
-                                 .replace(/[^A-Za-z0-9_.]/g, '_');
-      if (file.name !== safeName) {
-        const renamed = new File([file], safeName, {
-          type: file.type,
-          lastModified: file.lastModified
-        });
-        newFiles.push(renamed);
-      } else {
-        newFiles.push(file);
-      }
-    }
-    const dt = new DataTransfer();
-    newFiles.forEach(f => dt.items.add(f));
-    fileInput.files = dt.files;
-  });
-}
-</script>
-""", height=0)
