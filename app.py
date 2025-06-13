@@ -135,7 +135,7 @@ if uploaded_files:
                     auto_mapping = auto_map_columns(df.columns.tolist())
 
                 df = df[df.apply(is_valid_row, axis=1)].reset_index(drop=True)
-                df["__sheet_name__"] = sheet
+                df["__sheet_name__"] = sheet if sheet else "NO_SHEET"
 
                 required_fields = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"]
                 final_mapping = {
