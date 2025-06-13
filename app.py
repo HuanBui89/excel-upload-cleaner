@@ -10,7 +10,7 @@ from collections import defaultdict
 import streamlit.components.v1 as components
 
 st.set_page_config(page_title="GHN Upload Tool", layout="wide")
-st.title("📦 APP TẠO ĐƠN THEO MẮU GHN")
+st.title("📦 APP TẠO ĐƠN THEO MẪeU GHN")
 
 log_file = "history_logs.csv"
 if not os.path.exists(log_file):
@@ -25,9 +25,39 @@ template_labels = {
     "Mẫu 3 - Chị Thúy": "📘 Mẫu 3 - Chị Thúy"
 }
 label_to_value = {v: k for k, v in template_labels.items()}
-def_option = template_labels[st.session_state.get("template_option", "Mẫu 2 - Chị Linh")]
+default_option = template_labels[st.session_state.get("template_option", "Mẫu 2 - Chị Linh")]
 
-selected_label = st.selectbox("📝 Chọn mẫu xuất kết quả:", list(template_labels.values()), index=list(template_labels.values()).index(def_option), key="template_label")
+st.markdown(f"""
+<style>
+div[data-baseweb="select"] {{
+    width: fit-content !important;
+    min-width: 280px;
+    padding: 2px;
+}}
+div[data-baseweb="select"] > div {{
+    background-color: {"#28a745" if "Mẫu 1" in default_option else "#dc3545"} !important;
+    color: white !important;
+    font-weight: bold;
+    border-radius: 6px;
+    border: 2px solid #000;
+}}
+label[for="template_label"] {{
+    font-weight: bold;
+    font-size: 16px;
+    color: #dc3545;
+    margin-bottom: 5px;
+    display: block;
+}}
+</style>
+""", unsafe_allow_html=True)
+
+selected_label = st.selectbox(
+    "📝 Chọn mẫu xuất kết quả:",
+    options=list(template_labels.values()),
+    index=list(template_labels.values()).index(default_option),
+    key="template_label"
+)
+
 st.session_state.template_option = label_to_value[selected_label]
 template_option = st.session_state.template_option
 
@@ -72,10 +102,12 @@ if uploaded_files:
     for file in uploaded_files:
         file_bytes = file.read()
         file_hash = hashlib.md5(file_bytes).hexdigest()
+
         if file_hash in content_hashes:
             duplicates.add(file.name)
             continue
-        content_hashes.add(file_hash)
+        else:
+            content_hashes.add(file_hash)
 
         ext = file.name.split(".")[-1].lower()
         try:
@@ -93,8 +125,6 @@ if uploaded_files:
                 df_temp = pd.read_excel(tmp_path, sheet_name=sheet, header=None) if ext == "xlsx" else pd.read_csv(tmp_path, header=None)
                 first_row = df_temp.iloc[0].astype(str)
                 numeric_count = sum([cell.strip().replace('.', '', 1).isdigit() for cell in first_row])
-
-                is_lon_xon_sheet = "LỘN XỘN" in str(sheet).upper()
 
                 if numeric_count >= len(first_row) - 2:
                     df = df_temp.copy()
@@ -118,10 +148,12 @@ if uploaded_files:
                 df["Ghi chú thêm"] = (
                     df[final_mapping["tên hàng"]].astype(str) + " Size " +
                     df[final_mapping["size"]].astype(str) +
-                    " - KHÁCH KHÔNG NHỌN THU 30K, GỌI VỌ SHOP KHI ĐƯỚN SAI THÔNG TIN"
+                    " - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
                 )
 
-                df_out = pd.DataFrame({
+                df["__sheet_name__"] = sheet.upper() if sheet else ""
+
+                all_data.append(pd.DataFrame({
                     "Tên người nhận": df[final_mapping["họ tên"]],
                     "Số điện thoại": df[final_mapping["số điện thoại"]],
                     "Địa chỉ": df[final_mapping["địa chỉ"]],
@@ -135,31 +167,55 @@ if uploaded_files:
                     "Shop trả ship": "x", "Bưu cục": "", "Mã đơn riêng": "",
                     "Sản phẩm": df["Tên sản phẩm"],
                     "Ghi chú thêm": df["Ghi chú thêm"],
-                    "Ca lấy": 1, "Giao thất bại thu": 30000
-                })
-
-                # Xử lý sheet Lộn Xộn chỉ cho Mẫu 3
-                if template_option == "Mẫu 3 - Chị Thúy" and is_lon_xon_sheet:
-                    now = datetime.now()
-                    day = now.day
-                    month = now.month
-                    product_counter = defaultdict(int)
-
-                    for idx in range(len(df_out)):
-                        ten_sp = df_out.iloc[idx]["Sản phẩm"]
-                        size_match = re.search(r"(\d+kg)", str(df_out.iloc[idx]["Ghi chú thêm"]))
-                        size_text = size_match.group(1) if size_match else ""
-
-                        product_counter["LỘN XỘN"] += 1
-                        stt = product_counter["LỘN XỘN"]
-
-                        ma_don = f"LỘN XỘN D.{day}.{month}.{stt}"
-                        ghi_chu = f"{ma_don} [{ten_sp} {size_text}] - KHÁCH KHÔNG NHỌN THU 30K, GỌI VỌ SHOP KHI ĐƯỚN SAI THÔNG TIN"
-
-                        df_out.at[idx, "Mã đơn riêng"] = ma_don
-                        df_out.at[idx, "Ghi chú thêm"] = ghi_chu
-
-                all_data.append(df_out)
-
+                    "Ca lấy": 1, "Giao thất bại thu": 30000,
+                    "__sheet_name__": df["__sheet_name__"]
+                }))
         except Exception as e:
             st.error(f"❌ Lỗi đọc file {file.name}: {e}")
+
+    if duplicates:
+        st.error(f"⚠️ File trùng nội dung bị bỏ qua: {', '.join(duplicates)}")
+
+    if all_data:
+        final = pd.concat(all_data, ignore_index=True)
+        total_orders = len(final)
+
+        if template_option == "Mẫu 2 - Chị Linh":
+            final["Tên người nhận"] = (final.index + 1).astype(str) + "_" + final["Tên người nhận"].astype(str)
+
+        elif template_option == "Mẫu 3 - Chị Thúy":
+            now = datetime.now()
+            day = now.day
+            month = now.month
+
+            product_counter = defaultdict(int)
+            ma_don_list = []
+            ghi_chu_list = []
+
+            ten_sp_goc_list = final["Sản phẩm"].tolist()
+            size_goc_list = final["Ghi chú thêm"].str.extract(r"Size\s+(.*?)\s*-")[0].fillna("")
+            sheet_name_list = final["__sheet_name__"].tolist()
+
+            for idx in range(len(final)):
+                ten_sp_goc = str(ten_sp_goc_list[idx]).strip()
+                size_goc = str(size_goc_list[idx]).strip()
+                sheet_name = sheet_name_list[idx]
+
+                is_lon_xon = "LỘN XỘN" in sheet_name
+                ten_sp_rut_gon = "LỘN XỘN" if is_lon_xon else re.sub(r'^\s*\d+[A-Z]*\s+', '', ten_sp_goc)
+
+                product_counter[ten_sp_rut_gon] += 1
+                stt = product_counter[ten_sp_rut_gon]
+
+                ma_don_rieng = f"{ten_sp_rut_gon} D.{day}.{month}.{stt}"
+                ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} {size_goc}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
+
+                ma_don_list.append(ma_don_rieng)
+                ghi_chu_list.append(ghi_chu)
+
+            final["Mã đơn riêng"] = ma_don_list
+            final["Ghi chú thêm"] = ghi_chu_list
+
+        final.drop(columns=["__sheet_name__"], errors="ignore", inplace=True)
+
+        # Remaining export logic... (unchanged)
