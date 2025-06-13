@@ -185,38 +185,46 @@ if uploaded_files:
     if all_data:
         final = pd.concat(all_data, ignore_index=True)
         total_orders = len(final)
+    if template_option == "Mẫu 3 - Chị Thúy":
+        now = datetime.now()
+        day = now.day
+        month = now.month
 
-        if template_option == "Mẫu 3 - Chị Thúy":
-            now = datetime.now()
-            day = now.day
-            month = now.month
+        product_counter = defaultdict(int)
+        ma_don_list = []
+        ghi_chu_list = []
 
-            product_counter = defaultdict(int)
-            ma_don_list = []
-            ghi_chu_list = []
+        # Gom toàn bộ size gốc từ từng df (kể cả nhiều sheet)
+        size_goc_list = []
+        rut_gon_sp_list = []
 
-            # 👇 Lấy lại danh sách size từ các bản ghi gộp (theo cùng thứ tự)
-            size_goc_list = []
-            for df in all_data:
-                if "Size gốc" in df.columns:
-                    size_goc_list.extend(df["Size gốc"].tolist())
-                else:
-                    size_goc_list.extend([""] * len(df))  # fallback nếu thiếu
+        for df in all_data:
+            sizes = df["Size gốc"].tolist() if "Size gốc" in df.columns else ["" for _ in range(len(df))]
+            size_goc_list.extend(sizes)
 
-            for idx, row in final.iterrows():
-                ten_sp_goc = str(row["Sản phẩm"]).strip()
-                product_counter[ten_sp_goc] += 1
-                stt = product_counter[ten_sp_goc]
-                ten_sp_rut_gon = ten_sp_goc[3:].strip() if len(ten_sp_goc) > 3 else ten_sp_goc
-                ma_don_rieng = f"{ten_sp_rut_gon}.{day}.{month}.{stt}"
-                ma_don_list.append(ma_don_rieng)
+            # Lấy tên sản phẩm đã bỏ tiền tố (VD: bỏ '4B ', '5B ', v.v.)
+            rut_gon = [str(name)[3:].strip() if len(str(name)) > 3 else str(name).strip() for name in df["Sản phẩm"]]
+            rut_gon_sp_list.extend(rut_gon)
 
-                size_goc = str(size_goc_list[idx]).strip()
-                ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} {size_goc}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
-                ghi_chu_list.append(ghi_chu)
+        for idx, row in final.iterrows():
+            ten_sp_goc = str(row["Sản phẩm"]).strip()
+            ten_sp_rut_gon = rut_gon_sp_list[idx]
+            size_goc = size_goc_list[idx]
 
-            final["Mã đơn riêng"] = ma_don_list
-            final["Ghi chú thêm"] = ghi_chu_list
+            # Đếm số thứ tự theo tên SP rút gọn
+            product_counter[ten_sp_rut_gon] += 1
+            stt = product_counter[ten_sp_rut_gon]
+
+            ma_don_rieng = f"{ten_sp_rut_gon}.{day}.{month}.{stt}"
+            ma_don_list.append(ma_don_rieng)
+
+            ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} {size_goc}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
+            ghi_chu_list.append(ghi_chu)
+
+        final["Mã đơn riêng"] = ma_don_list
+        final["Ghi chú thêm"] = ghi_chu_list
+
+        
         if template_option == "Mẫu 2 - Chị Linh":
             final["Tên người nhận"] = (final.index + 1).astype(str) + "_" + final["Tên người nhận"].astype(str)
 
