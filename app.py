@@ -68,7 +68,7 @@ def auto_map_columns(columns):
         "số điện thoại": ["sdt", "sđt", "điện", "mobile"],
         "địa chỉ": ["địa chỉ", "địa", "dc"],
         "tên hàng": ["sản phẩm", "gồm", "sp", "tên hàng"],
-        "size": ["ghi chú", "mô tả", "size"],
+        "size": ["ghi chú", "size", "mô tả", "note"],
         "số tiền thu hộ": ["cod", "thu hộ", "tiền"]
     }
     for key, kws in keywords.items():
@@ -145,12 +145,12 @@ if uploaded_files:
                 }
 
                 df["Tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str)
-                df["Size gốc"] = df[final_mapping["size"]].astype(str)  # Lưu size riêng
+                df["Size gốc"] = df[final_mapping["size"]].astype(str).str.strip()
 
                 df["Ghi chú thêm"] = (
                     df[final_mapping["tên hàng"]].astype(str) + " Size " +
-                    df[final_mapping["size"]].astype(str) +
-                    " - KHÁCH KHÔNG NHẬN THU 30K, GỌI VẾ SHOP KHI ĐƠN SAI THÔNG TIN"
+                    df[final_mapping["size"]].astype(str).str.strip() +
+                    " - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
                 )
 
                 all_data.append(pd.DataFrame({
@@ -167,7 +167,8 @@ if uploaded_files:
                     "Shop trả ship": "x", "Bưu cục": "", "Mã đơn riêng": "",
                     "Sản phẩm": df["Tên sản phẩm"],
                     "Ghi chú thêm": df["Ghi chú thêm"],
-                    "Ca lấy": 1, "Giao thất bại thu": 30000
+                    "Ca lấy": 1, "Giao thất bại thu": 30000,
+                    "Size gốc": df["Size gốc"]
                 }))
 
         except Exception as e:
@@ -184,7 +185,6 @@ if uploaded_files:
             now = datetime.now()
             day = now.day
             month = now.month
-
             product_counter = defaultdict(int)
             ma_don_list = []
             ghi_chu_list = []
@@ -193,13 +193,11 @@ if uploaded_files:
                 ten_sp_goc = str(row["Sản phẩm"]).strip()
                 product_counter[ten_sp_goc] += 1
                 stt = product_counter[ten_sp_goc]
-
                 ten_sp_rut_gon = ten_sp_goc[3:].strip() if len(ten_sp_goc) > 3 else ten_sp_goc
                 ma_don_rieng = f"{ten_sp_rut_gon}.{day}.{month}.{stt}"
                 ma_don_list.append(ma_don_rieng)
-
                 size_goc = str(row["Size gốc"]).strip()
-                ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} {size_goc}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VẾ SHOP KHI ĐƠN SAI THÔNG TIN"
+                ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} {size_goc}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
                 ghi_chu_list.append(ghi_chu)
 
             final["Mã đơn riêng"] = ma_don_list
