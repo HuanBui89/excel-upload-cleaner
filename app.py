@@ -168,7 +168,7 @@ if uploaded_files:
                     "Sản phẩm": df["Tên sản phẩm"],
                     "Ghi chú thêm": df["Ghi chú thêm"],
                     "Ca lấy": 1, "Giao thất bại thu": 30000,
-                    "Size gốc": df["Size gốc"]
+            
                 }))
 
         except Exception as e:
