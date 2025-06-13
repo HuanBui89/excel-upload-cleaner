@@ -217,7 +217,12 @@ if uploaded_files:
         final["Mã đơn riêng"] = ma_don_list
         final["Ghi chú thêm"] = ghi_chu_list
 
+    elif template_option == "Mẫu 2 - Chị Linh":
+        final["Tên người nhận"] = (final.index + 1).astype(str) + "_" + final["Tên người nhận"].astype(str)
 
+    elif template_option == "Mẫu 1 - Chị Tiền":
+        # Mặc định đã có sẵn format Ghi chú từ phần chuẩn bị "df[\"Ghi chú thêm\"] = " ở khối trên
+        pass
 
         if template_option == "Mẫu 2 - Chị Linh":
             final["Tên người nhận"] = (final.index + 1).astype(str) + "_" + final["Tên người nhận"].astype(str)
