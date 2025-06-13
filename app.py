@@ -10,7 +10,7 @@ from collections import defaultdict
 import streamlit.components.v1 as components
 
 st.set_page_config(page_title="GHN Upload Tool", layout="wide")
-st.title("📦 APP TẠO ĐƠN THEO MẪeU GHN")
+st.title("📦 APP TẠO ĐƠN THEO MẪU GHN")
 
 log_file = "history_logs.csv"
 if not os.path.exists(log_file):
