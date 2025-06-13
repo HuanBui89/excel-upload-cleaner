@@ -20,7 +20,8 @@ if "template_option" not in st.session_state:
 
 template_labels = {
     "Mẫu 1 - Chị Tiền": "📗 Mẫu 1 - Chị Tiền",
-    "Mẫu 2 - Chị Linh": "📕 Mẫu 2 - Chị Linh"
+    "Mẫu 2 - Chị Linh": "📕 Mẫu 2 - Chị Linh",
+    "Mẫu 3 - Chị Thúy": "📘 Mẫu 3 - Chị Thúy"
 }
 label_to_value = {v: k for k, v in template_labels.items()}
 default_option = template_labels[st.session_state.get("template_option", "Mẫu 2 - Chị Linh")]
@@ -176,6 +177,39 @@ if uploaded_files:
         final = pd.concat(all_data, ignore_index=True)
         total_orders = len(final)
 
+
+        if template_option == "Mẫu 3 - Chị Thúy":
+            from collections import defaultdict
+
+            # Lấy ngày và tháng hiện tại
+            now = datetime.now()
+            day = now.day
+            month = now.month  # không thêm số 0 phía trước
+
+            # Đếm số thứ tự theo từng tên sản phẩm
+            product_counter = defaultdict(int)
+            ma_don_list = []
+            ghi_chu_list = []
+
+            for idx, row in final.iterrows():
+                ten_sp_goc = str(row["Sản phẩm"]).strip()
+                product_counter[ten_sp_goc] += 1
+
+                # Bỏ 3 ký tự đầu tiên
+                ten_sp_rut_gon = ten_sp_goc[3:].strip() if len(ten_sp_goc) > 3 else ten_sp_goc
+
+                # Mã đơn riêng
+                stt = product_counter[ten_sp_goc]
+                ma_don_rieng = f"{ten_sp_rut_gon}.{day}.{month}.{stt}"
+                ma_don_list.append(ma_don_rieng)
+
+                # Ghi chú thêm
+                size = str(row["Ghi chú thêm"]).strip()  # đang lưu thông tin 'size' tại đây
+                ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} {size}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
+                ghi_chu_list.append(ghi_chu)
+
+            final["Mã đơn riêng"] = ma_don_list
+            final["Ghi chú thêm"] = ghi_chu_list
         if template_option == "Mẫu 2 - Chị Linh":
             final["Tên người nhận"] = (final.index + 1).astype(str) + "_" + final["Tên người nhận"].astype(str)
 
