@@ -153,7 +153,7 @@ if uploaded_files:
                     " - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
                 )
 
-                all_data.append(pd.DataFrame({
+               all_data.append(pd.DataFrame({
                     "Tên người nhận": df[final_mapping["họ tên"]],
                     "Số điện thoại": df[final_mapping["số điện thoại"]],
                     "Địa chỉ": df[final_mapping["địa chỉ"]],
@@ -161,13 +161,18 @@ if uploaded_files:
                     "Tiền thu hộ": df[final_mapping["số tiền thu hộ"]],
                     "Yêu cầu đơn hàng": 3,
                     "Khối lượng": 500,
-                    "Dài": 10, "Rộng": 10, "Cao": 10,
+                    "Dài": 10,
+                    "Rộng": 10,
+                    "Cao": 10,
                     "Khai giá": "x",
                     "Giá trị hàng": df[final_mapping["số tiền thu hộ"]],
-                    "Shop trả ship": "x", "Bưu cục": "", "Mã đơn riêng": "",
+                    "Shop trả ship": "x",
+                    "Bưu cục": "",
+                    "Mã đơn riêng": "",  # sẽ xử lý sau nếu cần
                     "Sản phẩm": df["Tên sản phẩm"],
                     "Ghi chú thêm": df["Ghi chú thêm"],
-                    "Ca lấy": 1, "Giao thất bại thu": 30000,
+                    "Ca lấy": 1,
+                    "Giao thất bại thu": 30000
             
                 }))
 
@@ -185,9 +190,18 @@ if uploaded_files:
             now = datetime.now()
             day = now.day
             month = now.month
+
             product_counter = defaultdict(int)
             ma_don_list = []
             ghi_chu_list = []
+
+            # 👇 Lấy lại danh sách size từ các bản ghi gộp (theo cùng thứ tự)
+            size_goc_list = []
+            for df in all_data:
+                if "Size gốc" in df.columns:
+                    size_goc_list.extend(df["Size gốc"].tolist())
+                else:
+                    size_goc_list.extend([""] * len(df))  # fallback nếu thiếu
 
             for idx, row in final.iterrows():
                 ten_sp_goc = str(row["Sản phẩm"]).strip()
@@ -196,13 +210,13 @@ if uploaded_files:
                 ten_sp_rut_gon = ten_sp_goc[3:].strip() if len(ten_sp_goc) > 3 else ten_sp_goc
                 ma_don_rieng = f"{ten_sp_rut_gon}.{day}.{month}.{stt}"
                 ma_don_list.append(ma_don_rieng)
-                size_goc = str(row["Size gốc"]).strip()
+
+                size_goc = str(size_goc_list[idx]).strip()
                 ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} {size_goc}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
                 ghi_chu_list.append(ghi_chu)
 
             final["Mã đơn riêng"] = ma_don_list
             final["Ghi chú thêm"] = ghi_chu_list
-
         if template_option == "Mẫu 2 - Chị Linh":
             final["Tên người nhận"] = (final.index + 1).astype(str) + "_" + final["Tên người nhận"].astype(str)
 
