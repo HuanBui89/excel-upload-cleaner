@@ -60,6 +60,7 @@ selected_label = st.selectbox(
 
 st.session_state.template_option = label_to_value[selected_label]
 template_option = st.session_state.template_option
+
 def auto_map_columns(columns):
     mapping = {}
     keywords = {
@@ -81,15 +82,15 @@ def auto_map_columns(columns):
     return mapping
 
 def is_valid_row(row):
-    phone_pattern = re.compile(r"\b0\d{9,10}\b")
-    cod_pattern = re.compile(r"\b\d{5,}\b")
-    row_str = " ".join([str(cell) for cell in row])
-    if phone_pattern.search(row_str) and cod_pattern.search(row_str):
-        return True
-    keywords = ['khách hàng', 'tổng', 'số lượng', 'sản phẩm', 'địa chỉ']
-    if any(kw in row_str.lower() for kw in keywords):
-        return False
-    return False
+    row_str = " ".join([str(cell).lower() for cell in row])
+    count = 0
+    if re.search(r"\b0\d{9,10}\b", row_str): count += 1
+    if re.search(r"\b\d{5,}\b", row_str): count += 1
+    if any(kw in row_str for kw in ["khách", "tên", "họ"]): count += 1
+    if any(kw in row_str for kw in ["địa chỉ", "dc"]): count += 1
+    if any(kw in row_str for kw in ["sản phẩm", "tên hàng", "sp"]): count += 1
+    if any(kw in row_str for kw in ["size", "ghi chú"]): count += 1
+    return count >= 3
 
 uploaded_files = st.file_uploader("Tải lên file .xlsx hoặc .csv", accept_multiple_files=True)
 
@@ -101,7 +102,6 @@ if uploaded_files:
     for file in uploaded_files:
         file_bytes = file.read()
         file_hash = hashlib.md5(file_bytes).hexdigest()
-
         if file_hash in content_hashes:
             duplicates.add(file.name)
             continue
@@ -134,14 +134,24 @@ if uploaded_files:
                     df.columns = first_row
                     auto_mapping = auto_map_columns(df.columns.tolist())
 
-                df = df[df.apply(is_valid_row, axis=1)].reset_index(drop=True)
-
                 required_fields = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"]
                 final_mapping = {
                     field: auto_mapping.get(field) or st.selectbox(
                         f"Chọn cột cho '{field}'", df.columns.tolist(), key=f"{field}_{sheet}_{file.name}"
                     ) for field in required_fields
                 }
+
+                def is_valid_row_by_column(row, mapping):
+                    count = 0
+                    if re.match(r"0\d{9,10}$", str(row[mapping["số điện thoại"]]).strip()): count += 1
+                    if str(row[mapping["số tiền thu hộ"]]).replace(".", "").isdigit(): count += 1
+                    if str(row[mapping["họ tên"]]).strip(): count += 1
+                    if str(row[mapping["địa chỉ"]]).strip(): count += 1
+                    if str(row[mapping["tên hàng"]]).strip(): count += 1
+                    if str(row[mapping["size"]]).strip(): count += 1
+                    return count >= 3
+
+                df = df[df.apply(lambda row: is_valid_row_by_column(row, final_mapping), axis=1)].reset_index(drop=True)
 
                 df["Tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str)
                 df["Ghi chú thêm"] = (
@@ -183,14 +193,11 @@ if uploaded_files:
             now = datetime.now()
             day = now.day
             month = now.month
-
             product_counter = defaultdict(int)
             ma_don_list = []
             ghi_chu_list = []
-
             ten_sp_goc_list = final["Sản phẩm"].tolist()
             size_goc_list = final["Ghi chú thêm"].str.extract(r"Size\s+(.*?)\s*-")[0].fillna("")
-
             for idx in range(len(final)):
                 ten_sp_goc = str(ten_sp_goc_list[idx]).strip()
                 size_goc = str(size_goc_list[idx]).strip()
@@ -201,7 +208,6 @@ if uploaded_files:
                 ma_don_list.append(ma_don_rieng)
                 ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} {size_goc}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
                 ghi_chu_list.append(ghi_chu)
-
             final["Mã đơn riêng"] = ma_don_list
             final["Ghi chú thêm"] = ghi_chu_list
 
@@ -223,16 +229,11 @@ if uploaded_files:
         if len(final) > 300:
             st.subheader("📂 Tách file mỗi 300 đơn")
             today = datetime.now().strftime("%d.%m")
-
-            if template_option == "Mẫu 1 - Chị Tiền":
-                shop_name = "SHOP_CHI_TIEN"
-            elif template_option == "Mẫu 2 - Chị Linh":
-                shop_name = "SHOP_CHI_LINH"
-            elif template_option == "Mẫu 3 - Chị Thúy":
-                shop_name = "SHOP_CHI_THUY"
-            else:
-                shop_name = "SHOP"
-
+            shop_name = {
+                "Mẫu 1 - Chị Tiền": "SHOP_CHI_TIEN",
+                "Mẫu 2 - Chị Linh": "SHOP_CHI_LINH",
+                "Mẫu 3 - Chị Thúy": "SHOP_CHI_THUY"
+            }.get(template_option, "SHOP")
             for i in range(0, len(final), 300):
                 chunk = final.iloc[i:i+300]
                 fname = f"GHN_{today}_{shop_name}_{i+1}-{i+len(chunk)}.xlsx"
