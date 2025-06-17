@@ -204,7 +204,7 @@ if uploaded_files:
                 ten_sp_rut_gon = re.sub(r'^\s*\d+[A-Z]*\s+', '', ten_sp_goc)
                 product_counter[ten_sp_rut_gon] += 1
                 stt = product_counter[ten_sp_rut_gon]
-                ma_don_rieng = f"{ten_sp_rut_gon} D.{day}.{month}.{stt}"
+                ma_don_rieng = f"{ten_sp_rut_gon}.{day}.{month}.{stt}"
                 ma_don_list.append(ma_don_rieng)
                 ghi_chu = f"{ma_don_rieng} [{ten_sp_goc} {size_goc}] - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
                 ghi_chu_list.append(ghi_chu)
