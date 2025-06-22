@@ -1,4 +1,5 @@
-import streamlit as stMore actions
+
+import streamlit as st
 import pandas as pd
 import io
 import hashlib
@@ -81,17 +82,6 @@ def auto_map_columns(columns):
                 break
     return mapping
 
-def is_valid_row(row):
-    row_str = " ".join([str(cell).lower() for cell in row])
-    count = 0
-    if re.search(r"\b0\d{9,10}\b", row_str): count += 1
-    if re.search(r"\b\d{5,}\b", row_str): count += 1
-    if any(kw in row_str for kw in ["khách", "tên", "họ"]): count += 1
-    if any(kw in row_str for kw in ["địa chỉ", "dc"]): count += 1
-    if any(kw in row_str for kw in ["sản phẩm", "tên hàng", "sp"]): count += 1
-    if any(kw in row_str for kw in ["size", "ghi chú"]): count += 1
-    return count >= 3
-
 uploaded_files = st.file_uploader("Tải lên file .xlsx hoặc .csv", accept_multiple_files=True)
 
 if uploaded_files:
@@ -141,6 +131,8 @@ if uploaded_files:
                     ) for field in required_fields
                 }
 
+                st.info(f"📌 Ánh xạ cột sheet `{sheet or file.name}`: {final_mapping}")
+
                 def is_valid_row_by_column(row, mapping):
                     count = 0
                     if re.match(r"0\d{9,10}$", str(row[mapping["số điện thoại"]]).strip()): count += 1
@@ -151,9 +143,25 @@ if uploaded_files:
                     if str(row[mapping["size"]]).strip(): count += 1
                     return count >= 3
 
-                df = df[df.apply(lambda row: is_valid_row_by_column(row, final_mapping), axis=1)].reset_index(drop=True)
+                df_valid = df[df.apply(lambda row: is_valid_row_by_column(row, final_mapping), axis=1)].reset_index(drop=True)
+                df_invalid = df[~df.index.isin(df_valid.index)]
 
-                # Loại bỏ dòng có chứa chữ "tổng" ở bất kỳ cột nào
+                if not df_invalid.empty:
+                    st.warning(f"⚠️ Sheet `{sheet or file.name}` bị loại {len(df_invalid)} dòng không hợp lệ.")
+                    st.dataframe(df_invalid)
+
+                    buf_invalid = io.BytesIO()
+                    df_invalid.to_excel(buf_invalid, index=False)
+                    st.download_button(
+                        label=f"📥 Tải dòng bị loại từ `{sheet or file.name}`",
+                        data=buf_invalid.getvalue(),
+                        file_name=f"loi_{sheet or 'sheet'}.xlsx",
+                        key=f"invalid_{sheet}_{file.name}"
+                    )
+
+                df = df_valid
+
+                # Bỏ dòng chứa từ khóa tổng/cộng
                 df = df[~df.apply(lambda row: row.astype(str).str.lower().str.contains("tổng|cộng").any(), axis=1)]
                 df["Tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str)
                 df["Ghi chú thêm"] = (
@@ -228,67 +236,8 @@ if uploaded_files:
         log_df = log_df.sort_values(by="Time", ascending=False)
         log_df.to_csv(log_file, index=False)
 
-        if len(final) > 300:
-            st.subheader("📂 Tách file mỗi 300 đơn")
-            today = datetime.now().strftime("%d.%m")
-            shop_name = {
-                "Mẫu 1 - Chị Tiền": "SHOP_CHI_TIEN",
-                "Mẫu 2 - Chị Linh": "SHOP_CHI_LINH",
-                "Mẫu 3 - Chị Thúy": "SHOP_CHI_THUY"
-            }.get(template_option, "SHOP")
-            for i in range(0, len(final), 300):
-                chunk = final.iloc[i:i+300]
-                fname = f"GHN_{today}_{shop_name}_{i+1}-{i+len(chunk)}.xlsx"
-                buf_chunk = io.BytesIO()
-                chunk.to_excel(buf_chunk, index=False)
-                st.download_button(f"📥 Tải {fname}", buf_chunk.getvalue(), file_name=fname, key=f"chunk_{i}")
-
-            st.subheader("📄 Gộp nhiều sheet (mỗi sheet 300 đơn)")
-            if st.button("📥 Tải file GHN nhiều sheet"):
-                multi_sheet_buf = io.BytesIO()
-                with pd.ExcelWriter(multi_sheet_buf, engine="xlsxwriter") as writer:
-                    for i in range(0, len(final), 300):
-                        chunk = final.iloc[i:i+300]
-                        sheet_name = f"{i+1}-{i+len(chunk)}"
-                        chunk.to_excel(writer, sheet_name=sheet_name, index=False)
-                    writer.save()
-                st.download_button(
-                    label="📥 Tải GHN nhiều sheet",
-                    data=multi_sheet_buf.getvalue(),
-                    file_name=f"GHN_{today}_{shop_name}_NHIEU_SHEET.xlsx"
-                )
-
 with st.expander("📜 Lịch sử 3 ngày gần đây"):
     log_df = pd.read_csv(log_file)
     log_df["Time"] = pd.to_datetime(log_df["Time"])
     recent_log = log_df[log_df["Time"] >= pd.Timestamp.now() - pd.Timedelta(days=3)]
     st.dataframe(recent_log)
-
-components.html("""
-<script>
-const fileInput = window.parent.document.querySelector('input[type=file]');
-if (fileInput) {
-  fileInput.addEventListener('change', (e) => {
-    let newFiles = [];
-    for (let i = 0; i < fileInput.files.length; i++) {
-      let file = fileInput.files[i];
-      const safeName = file.name.normalize('NFD')
-                                 .replace(/[\u0300-\u036f]/g, '')
-                                 .replace(/[^A-Za-z0-9_.]/g, '_');
-      if (file.name !== safeName) {
-        const renamed = new File([file], safeName, {
-          type: file.type,
-          lastModified: file.lastModified
-        });
-        newFiles.push(renamed);
-      } else {
-        newFiles.push(file);
-      }
-    }
-    const dt = new DataTransfer();
-    newFiles.forEach(f => dt.items.add(f));
-    fileInput.files = dt.files;
-  });
-}
-</script>
-""", height=0)
