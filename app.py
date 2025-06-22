@@ -91,69 +91,73 @@ if uploaded_files:
                 sheets = [None]
 
             for sheet in sheets:
-                st.info(f"📄 Đang xử lý sheet: {sheet}")
-                df_temp = pd.read_excel(tmp_path, sheet_name=sheet, header=None, dtype=str)
+    st.info(f"📄 Đang xử lý sheet: {sheet}")
+    df_temp = pd.read_excel(tmp_path, sheet_name=sheet, header=None, dtype=str)
 
-                first_row = df_temp.iloc[0].astype(str)
-                numeric_count = sum([cell.strip().replace('.', '', 1).isdigit() for cell in first_row])
+    first_row = df_temp.iloc[0].astype(str)
+    numeric_count = sum([cell.strip().replace('.', '', 1).isdigit() for cell in first_row])
 
-                if numeric_count >= len(first_row) - 2:
-                    df = df_temp.copy()
-                    df.columns = [f"Cột {i+1}" for i in range(df.shape[1])]
-                    auto_mapping = {
-                        "họ tên": df.columns[0],
-                        "số điện thoại": df.columns[1],
-                        "địa chỉ": df.columns[2],
-                        "tên hàng": df.columns[3],
-                        "size": df.columns[7],
-                        "số tiền thu hộ": df.columns[6]
-                    }
-                else:
-                    df = df_temp[1:].copy()
-                    df.columns = first_row
+    if numeric_count >= len(first_row) - 2:
+        df = df_temp.copy()
+        df.columns = [f"Cột {i+1}" for i in range(df.shape[1])]
+        auto_mapping = {
+            "họ tên": df.columns[0],
+            "số điện thoại": df.columns[1],
+            "địa chỉ": df.columns[2],
+            "tên hàng": df.columns[3],
+            "size": df.columns[7],
+            "số tiền thu hộ": df.columns[6]
+        }
+    else:
+        df = df_temp[1:].copy()
+        df.columns = first_row
 
-                    def auto_map_columns(columns):
-                        mapping = {}
-                        keywords = {
-                            "họ tên": ["khách", "họ", "tên", "khách hàng"],
-                            "số điện thoại": ["sdt", "sđt", "điện", "mobile"],
-                            "địa chỉ": ["địa chỉ", "địa", "dc"],
-                            "tên hàng": ["sản phẩm", "gồm", "sp", "tên hàng"],
-                            "size": ["ghi chú", "mô tả", "size"],
-                            "số tiền thu hộ": ["cod", "thu hộ", "tiền"]
-                        }
-                        for key, kws in keywords.items():
-                            for col in columns:
-                                for kw in kws:
-                                    if kw in str(col).lower():
-                                        mapping[key] = col
-                                        break
-                                if key in mapping:
-                                    break
-                        return mapping
+        def auto_map_columns(columns):
+            mapping = {}
+            columns_lower = [str(col).lower() for col in columns]
+            keywords = {
+                "họ tên": ["khách", "họ", "tên", "khách hàng"],
+                "số điện thoại": ["sdt", "sđt", "điện", "mobile"],
+                "địa chỉ": ["địa chỉ", "địa", "dc"],
+                "tên hàng": ["sản phẩm", "gồm", "sp", "tên hàng"],
+                "size": ["ghi chú", "mô tả", "size"],
+                "số tiền thu hộ": ["cod", "thu hộ", "tiền"]
+            }
+            for key, kws in keywords.items():
+                for i, col in enumerate(columns_lower):
+                    for kw in kws:
+                        if kw in col:
+                            mapping[key] = columns[i]  # dùng tên cột gốc
+                            break
+                    if key in mapping:
+                        break
+            return mapping
 
-                    auto_mapping = auto_map_columns(df.columns.tolist())
+        auto_mapping = auto_map_columns(df.columns.tolist())
 
-                required_fields = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"]
-                final_mapping = {
-                    field: auto_mapping.get(field) or st.selectbox(
-                        f"Chọn cột cho '{field}'", df.columns.tolist(), key=f"{field}_{sheet}_{file.name}"
-                    ) for field in required_fields
-                }
+    required_fields = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"]
+    final_mapping = {
+        field: auto_mapping.get(field) or st.selectbox(
+            f"Chọn cột cho '{field}'", df.columns.tolist(), key=f"{field}_{sheet}_{file.name}"
+        ) for field in required_fields
+    }
 
-                def is_valid_row_by_column(row, mapping):
-                    count = 0
-                    if re.search(r"\d{9,10}", str(row[mapping["số điện thoại"]])): count += 1
-                    if str(row[mapping["số tiền thu hộ"]]).replace(".", "").isdigit(): count += 1
-                    if str(row[mapping["họ tên"]]).strip(): count += 1
-                    if str(row[mapping["địa chỉ"]]).strip(): count += 1
-                    if str(row[mapping["tên hàng"]]).strip(): count += 1
-                    if str(row[mapping["size"]]).strip(): count += 1
-                    return count >= 3
+    def detect_phone_number(value):
+        value = str(value).strip()
+        return bool(re.fullmatch(r"0\d{9,10}", value))
 
-                df = df[df.apply(lambda row: is_valid_row_by_column(row, final_mapping), axis=1)].reset_index(drop=True)
+    def is_valid_row_by_column(row, mapping):
+        count = 0
+        if detect_phone_number(row[mapping["số điện thoại"]]): count += 1
+        if str(row[mapping["số tiền thu hộ"]]).replace(".", "").isdigit(): count += 1
+        if str(row[mapping["họ tên"]]).strip(): count += 1
+        if str(row[mapping["địa chỉ"]]).strip(): count += 1
+        if str(row[mapping["tên hàng"]]).strip(): count += 1
+        if str(row[mapping["size"]]).strip(): count += 1
+        return count >= 1  # chỉ cần có số điện thoại hợp lệ là giữ lại
 
-                df = df[~df.apply(lambda row: row.astype(str).str.lower().str.contains("tổng|cộng").any(), axis=1)]
+    df = df[df.apply(lambda row: is_valid_row_by_column(row, final_mapping), axis=1)].reset_index(drop=True)
+    df = df[~df.apply(lambda row: row.astype(str).str.lower().str.contains("tổng|cộng").any(), axis=1)]
                 df["Tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str)
                 df["Ghi chú thêm"] = (
                     df[final_mapping["tên hàng"]].astype(str) + " Size " +
