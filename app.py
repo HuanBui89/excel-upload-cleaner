@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit as stMore actions
 import pandas as pd
 import io
 import hashlib
@@ -152,6 +152,7 @@ if uploaded_files:
                     return count >= 3
 
                 df = df[df.apply(lambda row: is_valid_row_by_column(row, final_mapping), axis=1)].reset_index(drop=True)
+
                 # Loại bỏ dòng có chứa chữ "tổng" ở bất kỳ cột nào
                 df = df[~df.apply(lambda row: row.astype(str).str.lower().str.contains("tổng|cộng").any(), axis=1)]
                 df["Tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str)
