@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit as stMore actions
 import pandas as pd
 import io
 import hashlib
@@ -9,9 +9,8 @@ import re
 from collections import defaultdict
 import streamlit.components.v1 as components
 
-# App layout
 st.set_page_config(page_title="GHN Upload Tool", layout="wide")
-st.title("📦 APP TẠO ĐƠN THEO Mẫu GHN")
+st.title("📦 APP TẠO ĐƠN THEO MẪU GHN")
 
 log_file = "history_logs.csv"
 if not os.path.exists(log_file):
@@ -28,29 +27,29 @@ template_labels = {
 label_to_value = {v: k for k, v in template_labels.items()}
 default_option = template_labels[st.session_state.get("template_option", "Mẫu 2 - Chị Linh")]
 
-st.markdown("""
+st.markdown(f"""
 <style>
-div[data-baseweb="select"] {
+div[data-baseweb="select"] {{
     width: fit-content !important;
     min-width: 280px;
     padding: 2px;
-}
-div[data-baseweb="select"] > div {
-    background-color: {color} !important;
+}}
+div[data-baseweb="select"] > div {{
+    background-color: {"#28a745" if "Mẫu 1" in default_option else "#dc3545"} !important;
     color: white !important;
     font-weight: bold;
     border-radius: 6px;
     border: 2px solid #000;
 }}
-label[for="template_label"] {
+label[for="template_label"] {{
     font-weight: bold;
     font-size: 16px;
     color: #dc3545;
     margin-bottom: 5px;
     display: block;
-}
+}}
 </style>
-""".replace("{color}", "#28a745" if "Mẫu 1" in default_option else "#dc3545"), unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 selected_label = st.selectbox(
     "📝 Chọn mẫu xuất kết quả:",
@@ -61,6 +60,37 @@ selected_label = st.selectbox(
 
 st.session_state.template_option = label_to_value[selected_label]
 template_option = st.session_state.template_option
+
+def auto_map_columns(columns):
+    mapping = {}
+    keywords = {
+        "họ tên": ["khách", "họ", "tên", "khách hàng"],
+        "số điện thoại": ["sdt", "sđt", "điện", "mobile"],
+        "địa chỉ": ["địa chỉ", "địa", "dc"],
+        "tên hàng": ["sản phẩm", "gồm", "sp", "tên hàng"],
+        "size": ["ghi chú", "mô tả", "size"],
+        "số tiền thu hộ": ["cod", "thu hộ", "tiền"]
+    }
+    for key, kws in keywords.items():
+        for col in columns:
+            for kw in kws:
+                if kw in str(col).lower():
+                    mapping[key] = col
+                    break
+            if key in mapping:
+                break
+    return mapping
+
+def is_valid_row(row):
+    row_str = " ".join([str(cell).lower() for cell in row])
+    count = 0
+    if re.search(r"\b0\d{9,10}\b", row_str): count += 1
+    if re.search(r"\b\d{5,}\b", row_str): count += 1
+    if any(kw in row_str for kw in ["khách", "tên", "họ"]): count += 1
+    if any(kw in row_str for kw in ["địa chỉ", "dc"]): count += 1
+    if any(kw in row_str for kw in ["sản phẩm", "tên hàng", "sp"]): count += 1
+    if any(kw in row_str for kw in ["size", "ghi chú"]): count += 1
+    return count >= 3
 
 uploaded_files = st.file_uploader("Tải lên file .xlsx hoặc .csv", accept_multiple_files=True)
 
@@ -91,83 +121,40 @@ if uploaded_files:
                 sheets = [None]
 
             for sheet in sheets:
-    st.info(f"📄 Đang xử lý sheet: {sheet}")
-    df_temp = pd.read_excel(tmp_path, sheet_name=sheet, header=None, dtype=str)
+                df_temp = pd.read_excel(tmp_path, sheet_name=sheet, header=None) if ext == "xlsx" else pd.read_csv(tmp_path, header=None)
+                first_row = df_temp.iloc[0].astype(str)
+                numeric_count = sum([cell.strip().replace('.', '', 1).isdigit() for cell in first_row])
 
-    first_row = df_temp.iloc[0].astype(str)
-    numeric_count = sum([cell.strip().replace('.', '', 1).isdigit() for cell in first_row])
+                if numeric_count >= len(first_row) - 2:
+                    df = df_temp.copy()
+                    df.columns = [f"Cột {i+1}" for i in range(df.shape[1])]
+                    auto_mapping = {key: df.columns[i+2] for i, key in enumerate(["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"])}
+                else:
+                    df = df_temp[1:].copy()
+                    df.columns = first_row
+                    auto_mapping = auto_map_columns(df.columns.tolist())
 
-    if numeric_count >= len(first_row) - 2:
-        df = df_temp.copy()
-        df.columns = [f"Cột {i+1}" for i in range(df.shape[1])]
-        auto_mapping = {
-            "họ tên": df.columns[0],
-            "số điện thoại": df.columns[1],
-            "địa chỉ": df.columns[2],
-            "tên hàng": df.columns[3],
-            "size": df.columns[7],
-            "số tiền thu hộ": df.columns[6]
-        }
-    else:
-        df = df_temp[1:].copy()
-        df.columns = first_row
+                required_fields = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"]
+                final_mapping = {
+                    field: auto_mapping.get(field) or st.selectbox(
+                        f"Chọn cột cho '{field}'", df.columns.tolist(), key=f"{field}_{sheet}_{file.name}"
+                    ) for field in required_fields
+                }
 
-        def auto_map_columns(columns):
-            mapping = {}
-            columns_lower = [str(col).lower() for col in columns]
-            keywords = {
-                "họ tên": ["khách", "họ", "tên", "khách hàng"],
-                "số điện thoại": ["sdt", "sđt", "điện", "mobile"],
-                "địa chỉ": ["địa chỉ", "địa", "dc"],
-                "tên hàng": ["sản phẩm", "gồm", "sp", "tên hàng"],
-                "size": ["ghi chú", "mô tả", "size"],
-                "số tiền thu hộ": ["cod", "thu hộ", "tiền"]
-            }
-            for key, kws in keywords.items():
-                for i, col in enumerate(columns_lower):
-                    for kw in kws:
-                        if kw in col:
-                            mapping[key] = columns[i]  # dùng tên cột gốc
-                            break
-                    if key in mapping:
-                        break
+                def is_valid_row_by_column(row, mapping):
+                    count = 0
+                    if re.match(r"0\d{9,10}$", str(row[mapping["số điện thoại"]]).strip()): count += 1
+                    if str(row[mapping["số tiền thu hộ"]]).replace(".", "").isdigit(): count += 1
+                    if str(row[mapping["họ tên"]]).strip(): count += 1
+                    if str(row[mapping["địa chỉ"]]).strip(): count += 1
+                    if str(row[mapping["tên hàng"]]).strip(): count += 1
+                    if str(row[mapping["size"]]).strip(): count += 1
+                    return count >= 3
 
-            # fallback tự động nhận diện số điện thoại nếu chưa gán được
-            if "số điện thoại" not in mapping:
-                for col in columns:
-                    sample_values = df[col].dropna().astype(str).head(50)
-                    match_count = sum(bool(re.fullmatch(r"0\d{9,10}", val.strip())) for val in sample_values)
-                    if match_count >= 5:
-                        mapping["số điện thoại"] = col
-                        break
-            return mapping
+                df = df[df.apply(lambda row: is_valid_row_by_column(row, final_mapping), axis=1)].reset_index(drop=True)
 
-        auto_mapping = auto_map_columns(df.columns.tolist())
-
-    required_fields = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"]
-    final_mapping = {
-        field: auto_mapping.get(field) or st.selectbox(
-            f"Chọn cột cho '{field}'", df.columns.tolist(), key=f"{field}_{sheet}_{file.name}"
-        ) for field in required_fields
-    }
-
-    def detect_phone_number(value):
-        value = str(value).strip()
-        return bool(re.fullmatch(r"0\d{9,10}", value))
-
-    def is_valid_row_by_column(row, mapping):
-        try:
-            if detect_phone_number(row[mapping["số điện thoại"]]):
-                return True
-        except Exception:
-            return False
-        return False
-
-    df = df[df.apply(lambda row: is_valid_row_by_column(row, final_mapping), axis=1)].reset_index(drop=True)
-    df = df[~df.apply(lambda row: row.astype(str).str.lower().str.contains("tổng|cộng").any(), axis=1)]
-
-    # tiếp tục xử lý df như trước
-
+                # Loại bỏ dòng có chứa chữ "tổng" ở bất kỳ cột nào
+                df = df[~df.apply(lambda row: row.astype(str).str.lower().str.contains("tổng|cộng").any(), axis=1)]
                 df["Tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str)
                 df["Ghi chú thêm"] = (
                     df[final_mapping["tên hàng"]].astype(str) + " Size " +
