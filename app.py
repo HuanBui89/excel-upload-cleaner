@@ -131,6 +131,15 @@ if uploaded_files:
                             break
                     if key in mapping:
                         break
+
+            # fallback tự động nhận diện số điện thoại nếu chưa gán được
+            if "số điện thoại" not in mapping:
+                for col in columns:
+                    sample_values = df[col].dropna().astype(str).head(50)
+                    match_count = sum(bool(re.fullmatch(r"0\d{9,10}", val.strip())) for val in sample_values)
+                    if match_count >= 5:
+                        mapping["số điện thoại"] = col
+                        break
             return mapping
 
         auto_mapping = auto_map_columns(df.columns.tolist())
@@ -147,17 +156,18 @@ if uploaded_files:
         return bool(re.fullmatch(r"0\d{9,10}", value))
 
     def is_valid_row_by_column(row, mapping):
-        count = 0
-        if detect_phone_number(row[mapping["số điện thoại"]]): count += 1
-        if str(row[mapping["số tiền thu hộ"]]).replace(".", "").isdigit(): count += 1
-        if str(row[mapping["họ tên"]]).strip(): count += 1
-        if str(row[mapping["địa chỉ"]]).strip(): count += 1
-        if str(row[mapping["tên hàng"]]).strip(): count += 1
-        if str(row[mapping["size"]]).strip(): count += 1
-        return count >= 1  # chỉ cần có số điện thoại hợp lệ là giữ lại
+        try:
+            if detect_phone_number(row[mapping["số điện thoại"]]):
+                return True
+        except Exception:
+            return False
+        return False
 
     df = df[df.apply(lambda row: is_valid_row_by_column(row, final_mapping), axis=1)].reset_index(drop=True)
     df = df[~df.apply(lambda row: row.astype(str).str.lower().str.contains("tổng|cộng").any(), axis=1)]
+
+    # tiếp tục xử lý df như trước
+
                 df["Tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str)
                 df["Ghi chú thêm"] = (
                     df[final_mapping["tên hàng"]].astype(str) + " Size " +
