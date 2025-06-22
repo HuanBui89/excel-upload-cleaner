@@ -10,7 +10,7 @@ from collections import defaultdict
 import streamlit.components.v1 as components
 
 st.set_page_config(page_title="GHN Upload Tool", layout="wide")
-st.title("📦 APP TẠO ĐƠN THEO Mẫu GHN")
+st.title("📦 APP TẠO ĐƠN THEO MẪU GHN")
 
 log_file = "history_logs.csv"
 if not os.path.exists(log_file):
@@ -61,17 +61,6 @@ selected_label = st.selectbox(
 st.session_state.template_option = label_to_value[selected_label]
 template_option = st.session_state.template_option
 
-@st.cache_data
-def read_file_content(file_bytes, ext, sheet=None):
-    with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}") as tmp:
-        tmp.write(file_bytes)
-        tmp_path = tmp.name
-
-    if ext == "xlsx":
-        return pd.read_excel(tmp_path, sheet_name=sheet, header=None)
-    else:
-        return pd.read_csv(tmp_path, header=None)
-
 def auto_map_columns(columns):
     mapping = {}
     keywords = {
@@ -92,16 +81,25 @@ def auto_map_columns(columns):
                 break
     return mapping
 
+def is_valid_row(row):
+    row_str = " ".join([str(cell).lower() for cell in row])
+    count = 0
+    if re.search(r"\b0\d{9,10}\b", row_str): count += 1
+    if re.search(r"\b\d{5,}\b", row_str): count += 1
+    if any(kw in row_str for kw in ["khách", "tên", "họ"]): count += 1
+    if any(kw in row_str for kw in ["địa chỉ", "dc"]): count += 1
+    if any(kw in row_str for kw in ["sản phẩm", "tên hàng", "sp"]): count += 1
+    if any(kw in row_str for kw in ["size", "ghi chú"]): count += 1
+    return count >= 3
+
 uploaded_files = st.file_uploader("Tải lên file .xlsx hoặc .csv", accept_multiple_files=True)
 
 if uploaded_files:
     all_data = []
     duplicates = set()
     content_hashes = set()
-    progress = st.progress(0)
 
-    for idx, file in enumerate(uploaded_files):
-        progress.progress((idx + 1) / len(uploaded_files))
+    for file in uploaded_files:
         file_bytes = file.read()
         file_hash = hashlib.md5(file_bytes).hexdigest()
         if file_hash in content_hashes:
@@ -112,15 +110,18 @@ if uploaded_files:
 
         ext = file.name.split(".")[-1].lower()
         try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}") as tmp:
+                tmp.write(file_bytes)
+                tmp_path = tmp.name
+
             if ext == "xlsx":
-                xls = pd.ExcelFile(io.BytesIO(file_bytes))
+                xls = pd.ExcelFile(tmp_path)
                 sheets = xls.sheet_names
             else:
                 sheets = [None]
 
             for sheet in sheets:
-                df_temp = read_file_content(file_bytes, ext, sheet)
-                original_len = len(df_temp)
+                df_temp = pd.read_excel(tmp_path, sheet_name=sheet, header=None) if ext == "xlsx" else pd.read_csv(tmp_path, header=None)
                 first_row = df_temp.iloc[0].astype(str)
                 numeric_count = sum([cell.strip().replace('.', '', 1).isdigit() for cell in first_row])
 
@@ -151,17 +152,13 @@ if uploaded_files:
                     return count >= 3
 
                 df = df[df.apply(lambda row: is_valid_row_by_column(row, final_mapping), axis=1)].reset_index(drop=True)
+                # Loại bỏ dòng có chứa chữ "tổng" ở bất kỳ cột nào
                 df = df[~df.apply(lambda row: row.astype(str).str.lower().str.contains("tổng|cộng").any(), axis=1)]
-                valid_len = len(df)
-                invalid_len = original_len - valid_len
-                if invalid_len > 0:
-                    st.warning(f"⚠️ Sheet '{sheet or file.name}' bị loại {invalid_len} dòng không hợp lệ.")
-
                 df["Tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str)
                 df["Ghi chú thêm"] = (
                     df[final_mapping["tên hàng"]].astype(str) + " Size " +
                     df[final_mapping["size"]].astype(str) +
-                    " - KHÁCH KHÔNG NHẪn THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
+                    " - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
                 )
 
                 all_data.append(pd.DataFrame({
@@ -183,16 +180,12 @@ if uploaded_files:
         except Exception as e:
             st.error(f"❌ Lỗi đọc file {file.name}: {e}")
 
-    progress.empty()
-
     if duplicates:
         st.error(f"⚠️ File trùng nội dung bị bỏ qua: {', '.join(duplicates)}")
 
     if all_data:
         final = pd.concat(all_data, ignore_index=True)
         total_orders = len(final)
-        st.toast(f"🎉 Đã xử lý {total_orders} đơn thành công!", icon="✅")
-
 
         if template_option == "Mẫu 2 - Chị Linh":
             final["Tên người nhận"] = (final.index + 1).astype(str) + "_" + final["Tên người nhận"].astype(str)
