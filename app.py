@@ -162,8 +162,6 @@ if uploaded_files:
                     return False
 
                 df = df[~df.apply(is_summary_row, axis=1)]
-                # Loại bỏ dòng có chứa chữ "tổng" ở bất kỳ cột nào
-                df = df[~df.apply(lambda row: row.astype(str).str.lower().str.contains("tổng|cộng").any(), axis=1)]
                 df["Tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str)
                 df["Ghi chú thêm"] = (
                     df[final_mapping["tên hàng"]].astype(str) + " Size " +
