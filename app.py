@@ -122,17 +122,27 @@ if uploaded_files:
 
             for sheet in sheets:
                 df_temp = pd.read_excel(tmp_path, sheet_name=sheet, header=None) if ext == "xlsx" else pd.read_csv(tmp_path, header=None)
-                first_row = df_temp.iloc[0].astype(str)
-                numeric_count = sum([cell.strip().replace('.', '', 1).isdigit() for cell in first_row])
-
-                if numeric_count >= len(first_row) - 2:
-                    df = df_temp.copy()
-                    df.columns = [f"Cột {i+1}" for i in range(df.shape[1])]
-                    auto_mapping = {key: df.columns[i+2] for i, key in enumerate(["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"])}
-                else:
-                    df = df_temp[1:].copy()
-                    df.columns = first_row
-                    auto_mapping = auto_map_columns(df.columns.tolist())
+                if template_option in ["Mẫu 1 - Chị Tiền", "Mẫu 3 - Chị Thúy"]:
+    possible_header = df_temp.iloc[1].astype(str).str.lower()
+    expected_cols = ["tên", "sdt", "địa", "sản phẩm", "cod", "ghi chú"]
+    if sum(any(exp in col for exp in expected_cols) for col in possible_header) >= 4:
+        df = df_temp[2:].copy()
+        df.columns = df_temp.iloc[1]
+    else:
+        df = df_temp.copy()
+        df.columns = [f"Cột {i+1}" for i in range(df.shape[1])]
+    auto_mapping = auto_map_columns(df.columns.tolist())
+else:
+    first_row = df_temp.iloc[0].astype(str)
+    numeric_count = sum([cell.strip().replace('.', '', 1).isdigit() for cell in first_row])
+    if numeric_count >= len(first_row) - 2:
+        df = df_temp.copy()
+        df.columns = [f"Cột {i+1}" for i in range(df.shape[1])]
+        auto_mapping = {key: df.columns[i+2] for i, key in enumerate(["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"])}
+    else:
+        df = df_temp[1:].copy()
+        df.columns = first_row
+        auto_mapping = auto_map_columns(df.columns.tolist())
 
                 required_fields = ["họ tên", "số điện thoại", "địa chỉ", "tên hàng", "size", "số tiền thu hộ"]
                 final_mapping = {
