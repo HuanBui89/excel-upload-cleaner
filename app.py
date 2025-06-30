@@ -153,14 +153,14 @@ if uploaded_files:
 
                 df = df[df.apply(lambda row: is_valid_row_by_column(row, final_mapping), axis=1)].reset_index(drop=True)
 
-# Loại bỏ dòng tiêu đề cộng tổng thật sự (ví dụ: "Tổng", "Tổng cộng", "Cộng") — không loại địa chỉ có "Cộng Hòa"
-        def is_summary_row(row):
-            summary_keywords = ["tổng", "tổng cộng", "cộng"]
-            for cell in row:
-                cell_str = str(cell).strip().lower()
-                if any(cell_str == kw for kw in summary_keywords):
-                    return True
-            return False
+        # Loại bỏ dòng tiêu đề cộng tổng thật sự (ví dụ: "Tổng", "Tổng cộng", "Cộng") — không loại địa chỉ có "Cộng Hòa"
+            def is_summary_row(row):
+                summary_keywords = ["tổng", "tổng cộng", "cộng"]
+                for cell in row:
+                    cell_str = str(cell).strip().lower()
+                    if any(cell_str == kw for kw in summary_keywords):
+                        return True
+                return False
 
         df = df[~df.apply(is_summary_row, axis=1)]
 
