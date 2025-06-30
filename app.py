@@ -159,8 +159,8 @@ if uploaded_files:
                     for cell in row:
                         cell_str = str(cell).strip().lower()
                         if any(cell_str == kw for kw in summary_keywords):
-                    return True
-                return False
+                            return True
+                    return False
 
                 df = df[~df.apply(is_summary_row, axis=1)]
 
