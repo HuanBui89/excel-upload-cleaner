@@ -154,12 +154,12 @@ if uploaded_files:
                 df = df[df.apply(lambda row: is_valid_row_by_column(row, final_mapping), axis=1)].reset_index(drop=True)
 
                 def is_summary_row(row):
-                summary_keywords = ["tổng", "tổng cộng"]
-                for cell in row:
-                    cell_str = str(cell).strip().lower()
-                    if cell_str in summary_keywords:
-                        return True
-                return False
+                    summary_keywords = ["tổng", "tổng cộng"]
+                    for cell in row:
+                        cell_str = str(cell).strip().lower()
+                        if cell_str in summary_keywords:
+                            return True
+                    return False
 
                 df = df[~df.apply(is_summary_row, axis=1)]
                 # Loại bỏ dòng có chứa chữ "tổng" ở bất kỳ cột nào
