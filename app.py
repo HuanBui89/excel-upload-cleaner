@@ -156,7 +156,7 @@ if uploaded_files:
                             if not cod.isdigit():
                                 return False
 
-                         count = 0
+                        count = 0
                         if phone: count += 1
                         if cod: count += 1
                         if str(row[mapping["họ tên"]]).strip(): count += 1
