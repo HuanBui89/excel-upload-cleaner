@@ -179,8 +179,8 @@ if uploaded_files:
                     return False
 
             df = df[~df.apply(is_summary_row, axis=1)]
-                df["Tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str)
-                df["Ghi chú thêm"] = (
+            df["Tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str)
+            df["Ghi chú thêm"] = (
                     df[final_mapping["tên hàng"]].astype(str) + " Size " +
                     df[final_mapping["size"]].astype(str) +
                     " - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
