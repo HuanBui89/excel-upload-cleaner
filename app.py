@@ -141,17 +141,30 @@ if uploaded_files:
                     ) for field in required_fields
                 }
 
-                def is_valid_row_by_column(row, mapping):
+            def is_valid_row_by_column(row, mapping):
+                try:
+                    phone = str(row[mapping["số điện thoại"]]).strip()
+                    cod = str(row[mapping["số tiền thu hộ"]]).replace(",", "").replace(".", "").strip()
+
+                    if template_option == "Mẫu 2 - Chị Linh":
+                    # Với mẫu Chị Linh: chỉ giữ dòng có SĐT hợp lệ và COD là số
+                        if not re.fullmatch(r"0\d{9,10}", phone):
+                            return False
+                        if not cod.isdigit():
+                            return False
+
                     count = 0
-                    if re.match(r"0\d{9,10}$", str(row[mapping["số điện thoại"]]).strip()): count += 1
-                    if str(row[mapping["số tiền thu hộ"]]).replace(".", "").isdigit(): count += 1
+                    if phone: count += 1
+                    if cod: count += 1
                     if str(row[mapping["họ tên"]]).strip(): count += 1
                     if str(row[mapping["địa chỉ"]]).strip(): count += 1
                     if str(row[mapping["tên hàng"]]).strip(): count += 1
                     if str(row[mapping["size"]]).strip(): count += 1
                     return count >= 3
+                except:
+                    return False
 
-                df = df[df.apply(lambda row: is_valid_row_by_column(row, final_mapping), axis=1)].reset_index(drop=True)
+            df = df[df.apply(lambda row: is_valid_row_by_column(row, final_mapping), axis=1)].reset_index(drop=True)
 
                 def is_summary_row(row):
                     summary_keywords = ["tổng", "tổng cộng"]
