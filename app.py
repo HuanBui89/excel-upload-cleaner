@@ -151,10 +151,10 @@ if uploaded_files:
 
                         if template_option == "Mẫu 2 - Chị Linh":
                             # Chỉ nhận SĐT hợp lệ và COD là số
-                        if not re.fullmatch(r"0\d{9,10}", phone):
-                            return False
-                        if not cod.isdigit():
-                            return False
+                            if not re.fullmatch(r"0\d{9,10}", phone):
+                                return False
+                            if not cod.isdigit():
+                                return False
 
                         count = 0
                         if phone: count += 1
