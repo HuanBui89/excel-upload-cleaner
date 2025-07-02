@@ -170,7 +170,7 @@ if uploaded_files:
 
             df = df[df.apply(lambda row: is_valid_row_by_column(row, final_mapping), axis=1)].reset_index(drop=True)
 
-                def is_summary_row(row):
+            def is_summary_row(row):
                     summary_keywords = ["tổng", "tổng cộng"]
                     for cell in row:
                         cell_str = str(cell).strip().lower()
