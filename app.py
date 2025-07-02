@@ -186,7 +186,7 @@ if uploaded_files:
                     " - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
                 )
 
-                all_data.append(pd.DataFrame({
+            all_data.append(pd.DataFrame({
                     "Tên người nhận": df[final_mapping["họ tên"]],
                     "Số điện thoại": df[final_mapping["số điện thoại"]],
                     "Địa chỉ": df[final_mapping["địa chỉ"]],
