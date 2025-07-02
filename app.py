@@ -178,7 +178,7 @@ if uploaded_files:
                             return True
                     return False
 
-                df = df[~df.apply(is_summary_row, axis=1)]
+            df = df[~df.apply(is_summary_row, axis=1)]
                 df["Tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str)
                 df["Ghi chú thêm"] = (
                     df[final_mapping["tên hàng"]].astype(str) + " Size " +
