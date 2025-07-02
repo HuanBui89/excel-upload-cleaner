@@ -141,8 +141,8 @@ if uploaded_files:
                     ) for field in required_fields
                 }
 
-            def is_valid_row_by_column(row, mapping):
-                try:
+                def is_valid_row_by_column(row, mapping):
+                    try:
                         phone_raw = row[mapping["số điện thoại"]]
                         cod_raw = row[mapping["số tiền thu hộ"]]
 
@@ -150,11 +150,11 @@ if uploaded_files:
                         cod = str(cod_raw).replace(",", "").replace(".", "").strip() if pd.notnull(cod_raw) else ""
 
                         if template_option == "Mẫu 2 - Chị Linh":
-                        # Chỉ nhận SĐT hợp lệ và COD là số
-                            if not re.fullmatch(r"0\d{9,10}", phone):
-                                return False
-                            if not cod.isdigit():
-                                return False
+                            # Chỉ nhận SĐT hợp lệ và COD là số
+                        if not re.fullmatch(r"0\d{9,10}", phone):
+                            return False
+                        if not cod.isdigit():
+                            return False
 
                         count = 0
                         if phone: count += 1
@@ -164,13 +164,12 @@ if uploaded_files:
                         if str(row[mapping["tên hàng"]]).strip(): count += 1
                         if str(row[mapping["size"]]).strip(): count += 1
                         return count >= 3
-                except:
+                    except:
                         return False
 
+                df = df[df.apply(lambda row: is_valid_row_by_column(row, final_mapping), axis=1)].reset_index(drop=True)
 
-            df = df[df.apply(lambda row: is_valid_row_by_column(row, final_mapping), axis=1)].reset_index(drop=True)
-
-            def is_summary_row(row):
+                def is_summary_row(row):
                     summary_keywords = ["tổng", "tổng cộng"]
                     for cell in row:
                         cell_str = str(cell).strip().lower()
@@ -178,15 +177,15 @@ if uploaded_files:
                             return True
                     return False
 
-            df = df[~df.apply(is_summary_row, axis=1)]
-            df["Tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str)
-            df["Ghi chú thêm"] = (
+                df = df[~df.apply(is_summary_row, axis=1)]
+                df["Tên sản phẩm"] = df[final_mapping["tên hàng"]].astype(str)
+                df["Ghi chú thêm"] = (
                     df[final_mapping["tên hàng"]].astype(str) + " Size " +
                     df[final_mapping["size"]].astype(str) +
                     " - KHÁCH KHÔNG NHẬN THU 30K, GỌI VỀ SHOP KHI ĐƠN SAI THÔNG TIN"
                 )
 
-            all_data.append(pd.DataFrame({
+                all_data.append(pd.DataFrame({
                     "Tên người nhận": df[final_mapping["họ tên"]],
                     "Số điện thoại": df[final_mapping["số điện thoại"]],
                     "Địa chỉ": df[final_mapping["địa chỉ"]],
