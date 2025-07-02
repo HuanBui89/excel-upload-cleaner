@@ -143,26 +143,30 @@ if uploaded_files:
 
             def is_valid_row_by_column(row, mapping):
                 try:
-                    phone = str(row[mapping["số điện thoại"]]).strip()
-                    cod = str(row[mapping["số tiền thu hộ"]]).replace(",", "").replace(".", "").strip()
+                        phone_raw = row[mapping["số điện thoại"]]
+                        cod_raw = row[mapping["số tiền thu hộ"]]
 
-                    if template_option == "Mẫu 2 - Chị Linh":
-                    # Với mẫu Chị Linh: chỉ giữ dòng có SĐT hợp lệ và COD là số
-                        if not re.fullmatch(r"0\d{9,10}", phone):
-                            return False
-                        if not cod.isdigit():
-                            return False
+                        phone = str(phone_raw).strip() if pd.notnull(phone_raw) else ""
+                        cod = str(cod_raw).replace(",", "").replace(".", "").strip() if pd.notnull(cod_raw) else ""
 
-                    count = 0
-                    if phone: count += 1
-                    if cod: count += 1
-                    if str(row[mapping["họ tên"]]).strip(): count += 1
-                    if str(row[mapping["địa chỉ"]]).strip(): count += 1
-                    if str(row[mapping["tên hàng"]]).strip(): count += 1
-                    if str(row[mapping["size"]]).strip(): count += 1
-                    return count >= 3
+                        if template_option == "Mẫu 2 - Chị Linh":
+                        # Chỉ nhận SĐT hợp lệ và COD là số
+                            if not re.fullmatch(r"0\d{9,10}", phone):
+                                return False
+                            if not cod.isdigit():
+                                return False
+
+                         count = 0
+                        if phone: count += 1
+                        if cod: count += 1
+                        if str(row[mapping["họ tên"]]).strip(): count += 1
+                        if str(row[mapping["địa chỉ"]]).strip(): count += 1
+                        if str(row[mapping["tên hàng"]]).strip(): count += 1
+                        if str(row[mapping["size"]]).strip(): count += 1
+                        return count >= 3
                 except:
-                    return False
+                        return False
+
 
             df = df[df.apply(lambda row: is_valid_row_by_column(row, final_mapping), axis=1)].reset_index(drop=True)
 
