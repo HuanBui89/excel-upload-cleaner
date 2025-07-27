@@ -191,7 +191,7 @@ if uploaded_files:
                     "Địa chỉ": df[final_mapping["địa chỉ"]],
                     "Gói cước": 2,
                     "Tiền thu hộ": df[final_mapping["số tiền thu hộ"]],
-                    "Yêu cầu đơn hàng": 3,
+                    "Yêu cầu đơn hàng": 1,
                     "Khối lượng": 500,
                     "Dài": 10, "Rộng": 10, "Cao": 10,
                     "Khai giá": "x",
